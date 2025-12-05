@@ -1,39 +1,33 @@
-<?php
+<?php /** @var \Framework\Support\LinkGenerator $link */ ?>
 
-/** @var \Framework\Support\LinkGenerator $link */
-?>
-
-<div class="container-fluid">
-    <div class="row">
-        <div class="col mt-5">
-            <div class="text-center">
-                <h2>Vaííčko MVC FW</h2>
-                <h3>Version <?= App\Configuration::FW_VERSION ?></h3>
-                <img src="<?= $link->asset('images/vaiicko_logo.png') ?>" alt="Framework Logo">
-                <p>
-                    Congratulations, you have successfully installed and run the framework
-                    <strong>Vaííčko</strong> <?= App\Configuration::FW_VERSION ?>!<br>
-                    We hope that you will create a great application using this framework.<br>
-                </p>
-                <p>
-                    This simple framework was created for teaching purposes and to better understand how the MVC
-                    architecture works.<br>
-                    It is intended for students of the subject <em>web application development</em>, but not only
-                    for them.
-                </p>
+<div class="plantcare-main-bg">
+    <div class="plantcare-center-content">
+        <div class="plantcare-logo-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" fill="none" viewBox="0 0 70 70">
+                <circle cx="35" cy="35" r="35" fill="#21b573"/>
+                <path d="M35 50c-8.284 0-15-6.716-15-15 0-8.284 6.716-15 15-15s15 6.716 15 15c0 8.284-6.716 15-15 15zm0-27c-6.627 0-12 5.373-12 12 0 6.627 5.373 12 12 12s12-5.373 12-12c0-6.627-5.373-12-12-12z" fill="#fff"/>
+            </svg>
+        </div>
+        <h2 class="plantcare-title">Welcome to PlantCare</h2>
+        <p class="plantcare-desc">Manage your home plants with ease. Track watering schedules, create care plans, and keep detailed notes about your growing collection.</p>
+        <div class="plantcare-features-grid">
+            <div class="plantcare-feature-box">
+                <h3>Track Your Plants</h3>
+                <p>Keep a comprehensive record of all your plants and their care requirements</p>
+            </div>
+            <div class="plantcare-feature-box">
+                <h3>Care Schedules</h3>
+                <p>Never miss watering or fertilizing with our calendar system</p>
+            </div>
+            <div class="plantcare-feature-box">
+                <h3>Care Plans</h3>
+                <p>Create custom care routines for different plant types</p>
+            </div>
+            <div class="plantcare-feature-box">
+                <h3>Notes & Observations</h3>
+                <p>Document growth progress and important observations</p>
             </div>
         </div>
-    </div>
-    <div class="row mt-3">
-        <div class="col text-center">
-            <h4>Authors</h4>
-            <div>
-                <a href="mailto:Patrik.Hrkut@fri.uniza.sk">doc. Ing. Patrik Hrkút, PhD.</a><br>
-                <a href="mailto:Michal.Duracik@fri.uniza.sk">Ing. Michal Ďuračík, PhD.</a><br>
-                <a href="mailto:Matej.Mesko@fri.uniza.sk">Ing. Matej Meško, PhD.</a><br><br>
-                &copy; 2020-<?= date('Y') ?> University of Žilina, Faculty of Management Science and Informatics,
-                Department of Software Technologies
-            </div>
-        </div>
+        <p class="plantcare-login-note">Please login or register to start managing your plants</p>
     </div>
 </div>

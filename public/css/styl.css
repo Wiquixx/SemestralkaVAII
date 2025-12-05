@@ -5,3 +5,170 @@
 .navbar-brand img {
     width: 50px;
 }
+
+/* PlantCare custom styles */
+.plantcare-main-bg {
+    min-height: 100vh;
+    background: #f4fef8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.plantcare-center-content {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.plantcare-logo-circle {
+    margin-bottom: 20px;
+}
+
+.plantcare-title {
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: #21b573;
+    margin-bottom: 10px;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+.plantcare-desc {
+    color: #21b573;
+    font-size: 1.1rem;
+    margin-bottom: 35px;
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+    display: block;
+}
+
+.plantcare-features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 28px;
+    margin-bottom: 32px;
+    width: 100%;
+    max-width: 700px;
+    justify-items: center;
+    align-items: center;
+}
+
+.plantcare-feature-box {
+    background: #fff;
+    border: 2px solid #d6f5e3;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px 0 rgba(33,181,115,0.07);
+    padding: 32px 18px 22px 18px;
+    text-align: center;
+    color: #21b573;
+    transition: box-shadow 0.2s;
+    width: 100%;
+    max-width: 320px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #baf2d8;
+    background: #f8fffb;
+}
+
+.plantcare-feature-box h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #21b573;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+.plantcare-feature-box p {
+    font-size: 1rem;
+    color: #21b573;
+    margin-bottom: 0;
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+.plantcare-feature-box:hover {
+    box-shadow: 0 4px 24px 0 rgba(33,181,115,0.13);
+}
+
+.plantcare-login-note {
+    color: #21b573;
+    font-size: 1rem;
+    margin-top: 10px;
+    text-align: center;
+}
+
+body, html {
+    background: #f4fef8 !important;
+}
+
+.admin-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    justify-items: stretch;
+    align-items: stretch;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+.admin-action-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 110px;
+    min-width: 0;
+    min-height: 0;
+    background: #f8fffb;
+    border: 2px solid #21b573;
+    border-radius: 18px;
+    color: #21b573;
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 2px 12px 0 rgba(33,181,115,0.07);
+    transition: box-shadow 0.2s, background 0.2s, color 0.2s;
+}
+
+.admin-action-btn:hover {
+    background: #21b573;
+    color: #fff;
+    box-shadow: 0 4px 24px 0 rgba(33,181,115,0.13);
+}
+
+@media (max-width: 1000px) {
+    .admin-actions-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    .admin-action-btn {
+        height: 90px;
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .admin-actions-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .admin-action-btn {
+        height: 70px;
+        font-size: 1rem;
+    }
+}
