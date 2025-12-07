@@ -47,13 +47,14 @@ class AuthController extends BaseController
     {
         $logged = null;
         if ($request->hasValue('submit')) {
-            $logged = $this->app->getAuthenticator()->login($request->value('username'), $request->value('password'));
+            // use email instead of username
+            $logged = $this->app->getAuthenticator()->login($request->value('email'), $request->value('password'));
             if ($logged) {
                 return $this->redirect($this->url("admin.index"));
             }
         }
 
-        $message = $logged === false ? 'Bad username or password' : null;
+        $message = $logged === false ? 'Bad email or password' : null;
         return $this->html(compact("message"));
     }
 
@@ -68,6 +69,6 @@ class AuthController extends BaseController
     public function logout(Request $request): Response
     {
         $this->app->getAuthenticator()->logout();
-        return $this->html();
+        return $this->redirect($this->app->getLinkGenerator()->url('home.index'));
     }
 }

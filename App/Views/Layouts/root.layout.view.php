@@ -23,18 +23,22 @@
     <script src="<?= $link->asset('js/script.js') ?>"></script>
 </head>
 <body>
+<?php if ($user->isLoggedIn()) { ?>
+    <div class="top-left-user">
+        Logged in user: <b><?= htmlspecialchars($user->getName(), ENT_QUOTES, 'UTF-8') ?></b>
+    </div>
+<?php } ?>
 <nav class="navbar navbar-expand-sm bg-light">
     <div class="container-fluid">
-        <a class="navbar-brand" href="<?= $link->url('home.index') ?>">
+        <a id="nav_brand" class="navbar-brand" href="<?= $link->url('home.index') ?>">
             <img src="<?= $link->asset('images/vaiicko_logo.png') ?>" title="<?= App\Configuration::APP_NAME ?>" alt="Framework Logo">
         </a>
         <ul class="navbar-nav me-auto">
             <li class="nav-item">
-                <a class="nav-link" href="<?= $link->url('home.contact') ?>">Contact</a>
+                <a id="nav_contact" class="nav-link" href="<?= $link->url('home.contact') ?>">Contact</a>
             </li>
         </ul>
         <?php if ($user->isLoggedIn()) { ?>
-            <span class="navbar-text">Logged in user: <b><?= $user->getName() ?></b></span>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="<?= $link->url('auth.logout') ?>">Log out</a>

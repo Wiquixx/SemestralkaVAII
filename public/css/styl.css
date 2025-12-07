@@ -117,7 +117,8 @@ body, html {
 
 .admin-actions-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* Support variable number of action cards (including the new Sort by). Use responsive min-width. */
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
     justify-items: stretch;
     align-items: stretch;
@@ -151,9 +152,27 @@ body, html {
     box-shadow: 0 4px 24px 0 rgba(33,181,115,0.13);
 }
 
+/* Disabled state for admin action buttons (used when toggling modes) */
+.admin-action-btn.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+    transform: none;
+}
+
+/* Style for select placed inside admin-action-btn so it fills available width and matches theme */
+.admin-action-btn .form-select {
+    width: 100%;
+    max-width: 220px;
+    border-radius: 8px;
+    border: 1px solid #21b573;
+    padding: 6px 8px;
+    background: #fff;
+    color: #21b573;
+}
+
 @media (max-width: 1000px) {
     .admin-actions-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, 1fr);
         gap: 12px;
     }
     .admin-action-btn {
@@ -170,5 +189,163 @@ body, html {
     .admin-action-btn {
         height: 70px;
         font-size: 1rem;
+    }
+}
+
+/* Sort row: ensure the Sort by control is centered and occupies its own row */
+.sort-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 12px;
+}
+.sort-row .sort-single {
+    width: auto;
+    max-width: 320px;
+    padding: 12px 18px;
+}
+
+/* Plants grid: left-to-right flow, responsive squares */
+.plants-section {
+    /* limit overall width so cards are reasonably large on wide screens */
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 12px; /* small side padding */
+}
+
+.plants-grid {
+    display: grid;
+    gap: 24px; /* larger gap to match bigger cards */
+    /* default: 5 columns on large screens; each column at least 240px */
+    grid-template-columns: repeat(5, minmax(240px, 1fr));
+    align-items: start;
+    margin-top: 16px;
+    justify-items: stretch; /* let cards fill column width */
+}
+
+.plant-card {
+    direction: ltr;
+    aspect-ratio: 1 / 1; /* square */
+    display: flex;
+    flex-direction: column; /* place name at top, media fills remaining space */
+    align-items: stretch;
+    justify-content: flex-start;
+    background: #fff;
+    border: 2px solid #d6f5e3;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(33,181,115,0.06);
+    color: #21b573;
+    font-weight: 700;
+    padding: 0; /* remove inner padding so media can fill fully */
+    text-align: center;
+    overflow: hidden;
+    font-size: 1.05rem; /* slightly bigger text */
+}
+
+.plant-card.remove-active {
+    border-color: #dc3545; /* bootstrap danger red */
+    box-shadow: 0 0 0 4px rgba(220,53,69,0.08), 0 6px 18px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+    transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out, transform 150ms ease-in-out;
+}
+
+.plant-card.remove-active .plant-name {
+    color: #b22222; /* darker red for the name */
+}
+
+/* Edit mode: highlight plant cards with blue border when editing */
+.plant-card.edit-active {
+    border-color: #0d6efd; /* bootstrap primary blue */
+    box-shadow: 0 0 0 4px rgba(13,110,253,0.08), 0 6px 18px rgba(0,0,0,0.04);
+    transform: translateY(-2px);
+    transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out, transform 150ms ease-in-out;
+}
+.plant-card.edit-active .plant-name {
+    color: #0b5ed7; /* slightly darker blue for the name */
+}
+
+.plant-name {
+    padding: 10px 12px;
+    font-size: 1rem;
+    line-height: 1.2;
+    color: #135e3a;
+    text-align: left;
+    background: rgba(255,255,255,0.95);
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.plant-media {
+    flex: 1 1 auto; /* fill remaining space */
+    display: flex;            /* changed to flex to center content */
+    align-items: center;      /* vertical center */
+    justify-content: center;  /* horizontal center */
+    width: 100%;
+    height: 100%;
+    background: #f3f6f3;
+}
+
+.plant-media--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9bbda8;
+    font-size: 0.95rem;
+}
+
+.plant-media img {
+    /* keep the image's aspect ratio and center it inside the square */
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* don't crop, fit inside */
+    display: block;
+}
+
+/* Responsive breakpoints - reduce columns on smaller screens */
+@media (max-width: 1400px) {
+    .plants-grid { grid-template-columns: repeat(4, minmax(220px, 1fr)); }
+}
+@media (max-width: 1100px) {
+    .plants-grid { grid-template-columns: repeat(3, minmax(200px, 1fr)); }
+}
+@media (max-width: 800px) {
+    .plants-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+}
+@media (max-width: 480px) {
+    .plants-grid { grid-template-columns: 1fr; }
+}
+
+/* Hide the top-left brand/logo and Contact link when required by UI */
+#nav_brand, #nav_contact {
+    display: none !important;
+}
+
+/* Ensure navbar layout remains consistent after hiding items */
+.navbar .me-auto { flex: 1 1 auto; }
+
+/* Top-left logged in user badge */
+.top-left-user {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.95);
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #135e3a;
+    font-weight: 600;
+    z-index: 1050; /* above normal content */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    font-size: 0.95rem;
+}
+.top-left-user b { font-weight: 800; }
+
+@media (max-width: 480px) {
+    /* On very small screens, reduce badge size to avoid overlap */
+    .top-left-user {
+        font-size: 0.85rem;
+        padding: 4px 8px;
+        top: 8px;
+        left: 8px;
     }
 }
