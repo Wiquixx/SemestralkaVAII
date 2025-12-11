@@ -5,7 +5,7 @@
 /** @var array $plants */
 ?>
 
-<div class="container-fluid">
+<div class="container-fluid" id="admin_index" data-admin-index="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" data-admin-edit="<?= htmlspecialchars($link->url('admin.editPlant'), ENT_QUOTES) ?>">
     <div class="row">
         <div class="col text-center">
             <div>
@@ -74,97 +74,4 @@
     <input type="hidden" name="plant_id" id="delete_plant_id" value="">
 </form>
 
-<script>
-(function() {
-    const select = document.getElementById('sort_by');
-    if (select) {
-        // base URL for admin index
-        const base = <?= json_encode($link->url('admin.index')) ?>;
-        select.addEventListener('change', function() {
-            const val = this.value || 'name_asc';
-            const sep = base.indexOf('?') !== -1 ? '&' : '?';
-            window.location = base + sep + 'sort=' + encodeURIComponent(val);
-        });
-    }
-
-    // Toggle remove mode: highlight borders and swap button text
-    const toggleBtn = document.getElementById('toggle_remove_btn');
-    const toggleEditBtn = document.getElementById('toggle_edit_btn');
-    if (!toggleBtn || !toggleEditBtn) return;
-    let removeMode = false;
-    let editMode = false;
-    const plantCards = () => Array.from(document.querySelectorAll('.plant-card'));
-
-    const enterRemoveMode = () => {
-        removeMode = true;
-        toggleBtn.textContent = 'Cancel';
-        toggleEditBtn.classList.add('disabled');
-        plantCards().forEach(c => c.classList.add('remove-active'));
-    };
-
-    const exitRemoveMode = () => {
-        removeMode = false;
-        toggleBtn.textContent = 'Remove Plant';
-        toggleEditBtn.classList.remove('disabled');
-        plantCards().forEach(c => c.classList.remove('remove-active'));
-    };
-
-    const enterEditMode = () => {
-        editMode = true;
-        toggleEditBtn.textContent = 'Cancel';
-        toggleBtn.classList.add('disabled');
-        plantCards().forEach(c => c.classList.add('edit-active'));
-    };
-
-    const exitEditMode = () => {
-        editMode = false;
-        toggleEditBtn.textContent = 'Edit Plant';
-        toggleBtn.classList.remove('disabled');
-        plantCards().forEach(c => c.classList.remove('edit-active'));
-    };
-
-    toggleBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (removeMode) exitRemoveMode(); else enterRemoveMode();
-    });
-
-    toggleEditBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (editMode) exitEditMode(); else enterEditMode();
-    });
-
-    // When in remove mode, clicking a plant asks for confirmation and deletes on Yes
-    const deleteForm = document.getElementById('delete_form');
-    const deleteInput = document.getElementById('delete_plant_id');
-    document.addEventListener('click', function(e) {
-        const card = e.target.closest('.plant-card');
-        if (!card) return;
-        if (removeMode) {
-            e.preventDefault();
-            const plantId = card.dataset.plantId;
-            const plantName = card.dataset.plantName || 'this plant';
-            const ok = confirm(`Do you really want to remove plant ${plantName}?`);
-            if (!ok) {
-                // behave like Cancel
-                exitRemoveMode();
-                return;
-            }
-            // submit the hidden form
-            if (deleteInput && deleteForm) {
-                deleteInput.value = plantId;
-                deleteForm.submit();
-            }
-            return;
-        }
-        if (editMode) {
-            e.preventDefault();
-            const plantId = card.dataset.plantId;
-            const baseEdit = <?= json_encode($link->url('admin.editPlant')) ?>;
-            const sep = baseEdit.indexOf('?') !== -1 ? '&' : '?';
-            // navigate to edit page with plant id
-            window.location = baseEdit + sep + 'id=' + encodeURIComponent(plantId);
-            return;
-        }
-    });
-})();
-</script>
+<script src="<?= htmlspecialchars($link->asset('js/admin_index.js'), ENT_QUOTES) ?>"></script>

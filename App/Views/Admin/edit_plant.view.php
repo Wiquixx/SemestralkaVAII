@@ -1,4 +1,4 @@
-<?php /** @var array $errors */ /** @var bool $success */ /** @var array $plant */ /** @var \Framework\Support\LinkGenerator $link */ ?>
+<?php /** @var array $errors */ /** @var bool $success */ /** @var array $plant */ /** @var \Framework\Support\LinkGenerator $link */ /** @var string|null $imagePath */ ?>
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
@@ -12,7 +12,7 @@
                 </div>
             <?php endif; ?>
 
-            <form method="post" action="<?= $link->url('admin.editPlant') ?>">
+            <form id="editPlantForm" method="post" enctype="multipart/form-data" action="<?= $link->url('admin.editPlant') ?>">
                 <input type="hidden" name="plant_id" value="<?= (int)($plant['plant_id'] ?? 0) ?>">
 
                 <div class="mb-3">
@@ -29,17 +29,70 @@
                 </div>
                 <div class="mb-3">
                     <label for="purchase_date" class="form-label">Purchase Date <span style="color:red">*</span></label>
-                    <input type="date" class="form-control" id="purchase_date" name="purchase_date" required value="<?= htmlspecialchars($_POST['purchase_date'] ?? $plant['purchase_date'] ?? '') ?>">
+                    <input type="date" class="form-control" id="purchase_date" name="purchase_date" required max="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($_POST['purchase_date'] ?? $plant['purchase_date'] ?? '') ?>">
                 </div>
                 <div class="mb-3">
                     <label for="notes" class="form-label">Notes</label>
                     <textarea class="form-control" id="notes" name="notes" rows="3"><?= htmlspecialchars($_POST['notes'] ?? $plant['notes'] ?? '') ?></textarea>
                 </div>
+
+                <!-- Image upload -->
+                <div class="mb-3">
+                    <label for="image" class="form-label">Plant Image</label>
+
+                    <?php if (!empty($imagePath)): ?>
+                        <div class="mb-2">
+                            <img id="currentImage" src="<?= htmlspecialchars($imagePath) ?>" alt="Current plant image" style="max-width:100%;height:auto;max-height:200px;border:1px solid #ddd;padding:4px;display:block;">
+                            <div class="form-text">Current image. Choosing a new file will replace it.</div>
+                        </div>
+                    <?php else: ?>
+                        <div class="mb-2">
+                            <img id="currentImage" src="" alt="" style="display:none;max-width:100%;height:auto;max-height:200px;border:1px solid #ddd;padding:4px;">
+                        </div>
+                    <?php endif; ?>
+
+                    <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                    <div class="form-text">Optional. Uploading a new image will be saved for this plant. Max size 5MB. Allowed types: JPEG, PNG, GIF.</div>
+                </div>
+
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary" style="background:#21b573;border:none;">Save Changes</button>
                     <a href="<?= $link->url('admin.index') ?>" class="btn btn-danger" style="background:#dc3545;border:none;color:#fff;">Cancel</a>
                 </div>
             </form>
+
+            <!-- Client-side preview: when a new file is chosen, show it and indicate it will replace the existing image -->
+            <script>
+                (function(){
+                    var input = document.getElementById('image');
+                    var img = document.getElementById('currentImage');
+                    if (!input || !img) return;
+                    input.addEventListener('change', function(){
+                        var file = input.files && input.files[0];
+                        if (!file) return;
+                        var allowed = ['image/jpeg','image/png','image/gif'];
+                        if (allowed.indexOf(file.type) === -1) {
+                            alert('Allowed image types: JPEG, PNG, GIF');
+                            input.value = '';
+                            return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert('File too large. Max 5MB');
+                            input.value = '';
+                            return;
+                        }
+                        var reader = new FileReader();
+                        reader.onload = function(e){
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                })();
+            </script>
+
+            <!-- Load external JS to enforce client-side validation (keeps view logic-free) -->
+            <script src="/js/admin_edit_plant.js"></script>
         </div>
     </div>
 </div>

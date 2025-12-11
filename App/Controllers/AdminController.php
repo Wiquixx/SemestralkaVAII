@@ -102,7 +102,20 @@ class AdminController extends BaseController
             }
             if ($purchase_date === '') {
                 $errors[] = 'Purchase date is required.';
+            } else {
+                // validate date format (Y-m-d) and ensure it's not in the future
+                $d = \DateTime::createFromFormat('Y-m-d', $purchase_date);
+                $isValidDate = $d && $d->format('Y-m-d') === $purchase_date;
+                if (!$isValidDate) {
+                    $errors[] = 'Purchase date is not a valid date.';
+                } else {
+                    $today = new \DateTime('today');
+                    if ($d > $today) {
+                        $errors[] = 'Purchase date cannot be in the future.';
+                    }
+                }
             }
+
             if (!$errors) {
                 try {
                     $user_id = $this->user->getId();
@@ -125,15 +138,78 @@ class AdminController extends BaseController
                     $uniq = substr(uniqid(), -6);
                     $plant_uid = $timestamp . '_' . $user_id . '_' . $uniq;
 
+                    // Begin transaction to ensure both plant and image are saved together
+                    $db->beginTransaction();
+
                     $stmt = $db->prepare('INSERT INTO plants (plant_uid, user_id, common_name, scientific_name, location, purchase_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)');
                     $stmt->execute([$plant_uid, $user_id, $common_name, $scientific_name, $location, $purchase_date, $notes]);
+
+                    // get newly inserted plant id
+                    $plantId = (int)$db->lastInsertId();
+
+                    // Handle uploaded image if present
+                    $uploaded = $request->file('image');
+                    $movedFilePath = null;
+                    if ($uploaded && $uploaded->isOk()) {
+                        // validate size (<=5MB) and mime type
+                        $maxBytes = 5 * 1024 * 1024;
+                        if ($uploaded->getSize() > $maxBytes) {
+                            throw new \Exception('Uploaded image exceeds 5MB size limit.');
+                        }
+                        // determine mime type from tmp file
+                        $tmpPath = $uploaded->getFileTempPath();
+                        $finfoType = @mime_content_type($tmpPath);
+                        $allowed = ['image/jpeg', 'image/png', 'image/gif'];
+                        if (!in_array($finfoType, $allowed, true)) {
+                            throw new \Exception('Uploaded file is not a permitted image type (JPEG, PNG, GIF).');
+                        }
+
+                        // ensure upload dir exists
+                        $projectRoot = dirname(__DIR__, 2);
+                        $uploadDir = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads';
+                        if (!is_dir($uploadDir)) {
+                            @mkdir($uploadDir, 0755, true);
+                        }
+
+                        $origName = $uploaded->getName();
+                        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+                        if ($ext === '') {
+                            // try to map mime type to ext
+                            $map = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+                            $ext = $map[$finfoType] ?? 'bin';
+                        }
+
+                        $newFileName = 'plant_' . $plantId . '_' . substr(uniqid(), -8) . '.' . $ext;
+                        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $newFileName;
+
+                        if (!$uploaded->store($targetPath)) {
+                            throw new \Exception('Failed to move uploaded file.');
+                        }
+
+                        // store web-accessible path (use forward slashes)
+                        $webPath = '/uploads/' . $newFileName;
+
+                        // insert image record
+                        $stmtImg = $db->prepare('INSERT INTO images (plant_id, file_path) VALUES (?, ?)');
+                        $stmtImg->execute([$plantId, $webPath]);
+
+                        // remember moved path for possible cleanup on failure
+                        $movedFilePath = $targetPath;
+                    }
+
+                    $db->commit();
 
                     $success = true;
 
                     // Redirect back to admin index so the new plant is immediately visible
                     return $this->redirect($this->url('admin.index'));
                 } catch (\Exception $e) {
-                    $errors[] = 'Database error: ' . $e->getMessage();
+                    // cleanup: if file moved, try to remove it
+                    try { $db->rollBack(); } catch (\Exception $_) {}
+                    if (!empty($movedFilePath) && is_file($movedFilePath)) {
+                        @unlink($movedFilePath);
+                    }
+                    $errors[] = 'Error: ' . $e->getMessage();
                 }
             }
         }
@@ -252,6 +328,12 @@ class AdminController extends BaseController
             return $this->redirect($this->url('admin.index'));
         }
 
+        // Fetch first image for this plant (if any) to show in edit form
+        $stmtImg = $db->prepare('SELECT file_path FROM images WHERE plant_id = ? LIMIT 1');
+        $stmtImg->execute([$plantId]);
+        $imgRow = $stmtImg->fetch();
+        $imagePath = $imgRow['file_path'] ?? null;
+
         if ($request->isPost()) {
             $data = $request->post();
             $common_name = trim($data['common_name'] ?? '');
@@ -265,20 +347,103 @@ class AdminController extends BaseController
             }
             if ($purchase_date === '') {
                 $errors[] = 'Purchase date is required.';
+            } else {
+                // validate date format and ensure not in the future
+                $d = \DateTime::createFromFormat('Y-m-d', $purchase_date);
+                $isValidDate = $d && $d->format('Y-m-d') === $purchase_date;
+                if (!$isValidDate) {
+                    $errors[] = 'Purchase date is not a valid date.';
+                } else {
+                    $today = new \DateTime('today');
+                    if ($d > $today) {
+                        $errors[] = 'Purchase date cannot be in the future.';
+                    }
+                }
             }
 
             if (empty($errors)) {
                 try {
+                    // Begin transaction to update plant and optionally store image
+                    $db->beginTransaction();
+
                     $stmt = $db->prepare('UPDATE plants SET common_name = ?, scientific_name = ?, location = ?, purchase_date = ?, notes = ? WHERE plant_id = ? AND user_id = ?');
                     $stmt->execute([$common_name, $scientific_name, $location, $purchase_date, $notes, $plantId, $this->user->getId()]);
+
+                    // Handle uploaded image if present
+                    $uploaded = $request->file('image');
+                    $movedFilePath = null;
+                    $oldImages = [];
+                    if ($uploaded && $uploaded->isOk()) {
+                        $maxBytes = 5 * 1024 * 1024;
+                        if ($uploaded->getSize() > $maxBytes) {
+                            throw new \Exception('Uploaded image exceeds 5MB size limit.');
+                        }
+                        $tmpPath = $uploaded->getFileTempPath();
+                        $finfoType = @mime_content_type($tmpPath);
+                        $allowed = ['image/jpeg', 'image/png', 'image/gif'];
+                        if (!in_array($finfoType, $allowed, true)) {
+                            throw new \Exception('Uploaded file is not a permitted image type (JPEG, PNG, GIF).');
+                        }
+
+                        $projectRoot = dirname(__DIR__, 2);
+                        $uploadDir = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads';
+                        if (!is_dir($uploadDir)) {
+                            @mkdir($uploadDir, 0755, true);
+                        }
+
+                        $origName = $uploaded->getName();
+                        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+                        if ($ext === '') {
+                            $map = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
+                            $ext = $map[$finfoType] ?? 'bin';
+                        }
+
+                        $newFileName = 'plant_' . $plantId . '_' . substr(uniqid(), -8) . '.' . $ext;
+                        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $newFileName;
+
+                        if (!$uploaded->store($targetPath)) {
+                            throw new \Exception('Failed to move uploaded file.');
+                        }
+
+                        $webPath = '/uploads/' . $newFileName;
+                        // Remove existing image records for this plant so we keep only the new one
+                        $stmtOld = $db->prepare('SELECT file_path FROM images WHERE plant_id = ?');
+                        $stmtOld->execute([$plantId]);
+                        $oldImages = $stmtOld->fetchAll();
+                        $stmtDel = $db->prepare('DELETE FROM images WHERE plant_id = ?');
+                        $stmtDel->execute([$plantId]);
+
+                        $stmtImg = $db->prepare('INSERT INTO images (plant_id, file_path) VALUES (?, ?)');
+                        $stmtImg->execute([$plantId, $webPath]);
+
+                        $movedFilePath = $targetPath;
+                    }
+
+                    $db->commit();
+
+                    // Unlink old image files now that DB transaction committed
+                    if (!empty($oldImages)) {
+                        $projectRoot = dirname(__DIR__, 2);
+                        foreach ($oldImages as $img) {
+                            $file = trim((string)($img['file_path'] ?? ''));
+                            if ($file === '') continue;
+                            $filePath = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $file), DIRECTORY_SEPARATOR);
+                            try { if (is_file($filePath)) { @unlink($filePath); } } catch (\Exception $_) {}
+                        }
+                    }
+
                     $success = true;
                     return $this->redirect($this->url('admin.index'));
                 } catch (\Exception $e) {
+                    try { $db->rollBack(); } catch (\Exception $_) {}
+                    if (!empty($movedFilePath) && is_file($movedFilePath)) {
+                        @unlink($movedFilePath);
+                    }
                     $errors[] = 'Database error: ' . $e->getMessage();
                 }
             }
         }
 
-        return $this->html(['errors' => $errors, 'success' => $success, 'plant' => $plant], 'edit_plant');
+        return $this->html(['errors' => $errors, 'success' => $success, 'plant' => $plant, 'imagePath' => $imagePath], 'edit_plant');
     }
 }
