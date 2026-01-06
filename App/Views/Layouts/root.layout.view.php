@@ -49,6 +49,9 @@
                 <li class="nav-item">
                     <a class="nav-link" href="<?= App\Configuration::LOGIN_URL ?>">Log in</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $link->url('auth.register') ?>">Register</a>
+                </li>
             </ul>
         <?php } ?>
     </div>

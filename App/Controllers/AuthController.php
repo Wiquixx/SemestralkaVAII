@@ -8,6 +8,7 @@ use Framework\Core\BaseController;
 use Framework\Http\Request;
 use Framework\Http\Responses\Response;
 use Framework\Http\Responses\ViewResponse;
+use Framework\DB\Connection;
 
 /**
  * Class AuthController
@@ -56,6 +57,71 @@ class AuthController extends BaseController
 
         $message = $logged === false ? 'Bad email or password' : null;
         return $this->html(compact("message"));
+    }
+
+    /**
+     * Register a new user: validate input, check duplicate email, insert into DB and redirect to login.
+     *
+     * @param Request $request
+     * @return Response
+     * @throws Exception
+     */
+    public function register(Request $request): Response
+    {
+        $errors = [];
+        $email = '';
+
+        if ($request->hasValue('submit')) {
+            $email = trim((string)$request->value('email'));
+            $password = (string)$request->value('password');
+            $confirm = (string)$request->value('confirm_password');
+
+            // Required fields
+            if ($email === '' || $password === '' || $confirm === '') {
+                $errors[] = 'All fields are required.';
+            }
+
+            // Email format
+            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'Email is not valid.';
+            }
+
+            // Password length
+            if ($password !== '' && strlen($password) < 6) {
+                $errors[] = 'Password must be at least 6 characters long.';
+            }
+
+            // Passwords match
+            if ($password !== $confirm) {
+                $errors[] = 'Passwords do not match.';
+            }
+
+            if (empty($errors)) {
+                try {
+                    $db = Connection::getInstance();
+                    // Check duplicate email
+                    $check = $db->prepare('SELECT user_id FROM users WHERE email = ?');
+                    $check->execute([$email]);
+                    $existing = $check->fetch();
+                    if ($existing) {
+                        $errors[] = 'Email is already registered.';
+                    } else {
+                        $hash = password_hash($password, PASSWORD_DEFAULT);
+                        $displayName = strtok($email, '@');
+                        $insert = $db->prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)');
+                        $insert->execute([$email, $hash, $displayName]);
+
+                        // Redirect to login page after successful registration
+                        return $this->redirect(Configuration::LOGIN_URL);
+                    }
+                } catch (Exception $e) {
+                    $errors[] = 'Database error: ' . $e->getMessage();
+                }
+            }
+        }
+
+        // Pass back the email so the view can prefill it when there are validation errors
+        return $this->html(compact('errors', 'email'));
     }
 
     /**
