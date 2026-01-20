@@ -28,9 +28,9 @@ $view->setLayout('auth');
                             <input name="password" type="password" id="password" class="form-control"
                                    placeholder="Password" required>
                         </div>
-                        <div class="text-center">
-                            <button class="btn btn-primary" type="submit" name="submit">Log in
-                            </button>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" type="submit" name="submit">Log in</button>
+                            <a class="btn btn-secondary" href="<?= $link->url('home.index') ?>">Cancel</a>
                         </div>
                     </form>
                 </div>
