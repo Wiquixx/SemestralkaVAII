@@ -44,17 +44,5 @@ CREATE TABLE reminders (
     CONSTRAINT fk_reminders_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id)
 ) ENGINE=InnoDB;
 
--- Table: care_actions
-CREATE TABLE care_actions (
-    action_id INT AUTO_INCREMENT PRIMARY KEY,
-    plant_id INT NOT NULL,
-    action_type VARCHAR(50) NOT NULL,
-    action_date DATE NOT NULL,
-    notes TEXT,
-    created_by INT NOT NULL,
-    CONSTRAINT fk_careactions_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id),
-    CONSTRAINT fk_careactions_user FOREIGN KEY (created_by) REFERENCES users(user_id)
-) ENGINE=InnoDB;
-
 -- Index for users.email
 CREATE UNIQUE INDEX idx_users_email ON users(email);

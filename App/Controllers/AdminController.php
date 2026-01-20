@@ -241,8 +241,8 @@ class AdminController extends BaseController
      * Deletes a plant and its related data.
      *
      * This action deletes a plant specified by plant_id. It verifies that the plant belongs to the
-     * currently logged-in user, deletes related images (both database records and physical files),
-     * reminders, and care actions, and then deletes the plant itself. All deletions are performed
+     * currently logged-in user, deletes related images (both database records and physical files)
+     * and reminders, and then deletes the plant itself. All deletions are performed
      * within a database transaction. After successful deletion, it redirects to the admin index.
      *
      * @param Request $request The request object containing the plant_id to delete.
@@ -290,9 +290,6 @@ class AdminController extends BaseController
             $stmt = $db->prepare('DELETE FROM reminders WHERE plant_id = ?');
             $stmt->execute([$plantId]);
 
-            // Delete care_actions related to this plant
-            $stmt = $db->prepare('DELETE FROM care_actions WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
 
             // Delete the plant
             $stmt = $db->prepare('DELETE FROM plants WHERE plant_id = ?');
