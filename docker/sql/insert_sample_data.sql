@@ -1,6 +1,6 @@
 -- Vzorové dáta pre users
-INSERT INTO users (email, password_hash, display_name) VALUES
-('john.doe@example.com', '$2y$10$GRA8D27bvZZw8b85CAwRee9NH5nj4CQA6PDFMc90pN9Wi4VAWq3yq', 'John Doe');
+INSERT INTO users (email, password_hash, display_name, status) VALUES
+('john.doe@example.com', '$2y$10$GRA8D27bvZZw8b85CAwRee9NH5nj4CQA6PDFMc90pN9Wi4VAWq3yq', 'John Doe', 1);
 
 -- Vzorové dáta pre plants
 INSERT INTO plants (user_id, common_name, scientific_name, location, purchase_date, notes) VALUES

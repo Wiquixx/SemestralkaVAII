@@ -26,13 +26,13 @@ class DbAuthenticator extends SessionAuthenticator
         $email = $username;
 
         $db = Connection::getInstance();
-        $stmt = $db->prepare('SELECT user_id, email, password_hash, display_name FROM users WHERE email = ?');
+        $stmt = $db->prepare('SELECT user_id, email, password_hash, display_name, status FROM users WHERE email = ?');
         $stmt->execute([$email]);
         $row = $stmt->fetch();
         if ($row) {
             $hash = $row['password_hash'] ?? $row['password'] ?? null; // be flexible if different column name
             if ($hash && password_verify($password, $hash)) {
-                return new User((int)$row['user_id'], $row['email'], $row['display_name']);
+                return new User((int)$row['user_id'], $row['email'], $row['display_name'], isset($row['status']) ? (int)$row['status'] : 2);
             }
         }
         return null;

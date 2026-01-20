@@ -4,6 +4,7 @@ CREATE TABLE users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100) NOT NULL,
+    status TINYINT NOT NULL DEFAULT 2 COMMENT '1=admin,2=user',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 

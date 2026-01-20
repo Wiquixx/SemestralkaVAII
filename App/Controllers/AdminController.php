@@ -28,7 +28,22 @@ class AdminController extends BaseController
      */
     public function authorize(Request $request, string $action): bool
     {
-        return $this->user->isLoggedIn();
+        // Only logged in users can access admin actions generally
+        if (!$this->user->isLoggedIn()) {
+            return false;
+        }
+
+        // Restrict the users listing to admin users (status === 1)
+        if ($action === 'users') {
+            try {
+                return $this->user->getStatus() === 1;
+            } catch (\Throwable $_) {
+                // In case identity doesn't expose status for some reason, deny access by default
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -653,5 +668,35 @@ class AdminController extends BaseController
             // On error, return empty list (do not expose internals)
             return $this->json([]);
         }
+    }
+
+    /**
+     * Displays the users page in the admin panel.
+     *
+     * This action requires authorization. It fetches all users along with counts of their plants and reminders,
+     * and passes this data to the view for rendering.
+     *
+     * @return Response Returns a response object containing the rendered HTML.
+     */
+    public function users(Request $request): Response
+    {
+        $db = Connection::getInstance();
+        $sql = "SELECT u.user_id, u.display_name, u.email, u.created_at,
+            COALESCE(p.plant_count, 0) AS plant_count,
+            COALESCE(r.reminder_count, 0) AS reminder_count
+            FROM users u
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS plant_count FROM plants GROUP BY user_id
+            ) p ON p.user_id = u.user_id
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS reminder_count FROM reminders GROUP BY user_id
+            ) r ON r.user_id = u.user_id
+            ORDER BY u.user_id ASC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([]);
+        $users = $stmt->fetchAll();
+
+        return $this->html(compact('users'));
     }
 }

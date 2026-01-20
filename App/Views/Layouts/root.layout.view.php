@@ -43,6 +43,11 @@
                 <li class="nav-item">
                     <a class="nav-link" href="<?= $link->url('auth.settings') ?>">Settings</a>
                 </li>
+                <?php if ($user->getStatus() === 1) { ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= $link->url('admin.users') ?>">Users</a>
+                    </li>
+                <?php } ?>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= $link->url('auth.logout') ?>">Log out</a>
                 </li>
