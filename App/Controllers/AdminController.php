@@ -559,4 +559,93 @@ class AdminController extends BaseController
 
         return $this->html(['plants' => $plants, 'errors' => $errors], 'create_schedule');
     }
+
+    // New JSON endpoint: returns reminder occurrences for a given month for the current user.
+    public function reminders(Request $request): Response
+    {
+        // If user not logged in, return empty list
+        if (!$this->user->isLoggedIn()) {
+            return $this->json([]);
+        }
+
+        $year = (int)($request->value('year') ?? date('Y'));
+        $month = (int)($request->value('month') ?? date('n'));
+        if ($month < 1) $month = 1;
+        if ($month > 12) $month = 12;
+
+        try {
+            $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+            $end = clone $start;
+            $end->modify('last day of this month');
+
+            $db = Connection::getInstance();
+            // Fetch one-off reminders within the month, and recurring reminders that started on or before month end
+            $sql = "SELECT r.reminder_id, r.user_id, r.plant_id, r.remind_date, r.frequency_days, r.title, r.notes, p.common_name AS plant_name
+                    FROM reminders r
+                    JOIN plants p ON p.plant_id = r.plant_id
+                    WHERE r.user_id = ?
+                      AND r.active = 1
+                      AND (
+                        (r.frequency_days = -1 AND r.remind_date BETWEEN ? AND ?)
+                        OR (r.frequency_days > 0 AND r.remind_date <= ?)
+                      )";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$this->user->getId(), $start->format('Y-m-d'), $end->format('Y-m-d'), $end->format('Y-m-d')]);
+            $rows = $stmt->fetchAll();
+
+            $occurrences = [];
+            foreach ($rows as $r) {
+                $freq = (int)($r['frequency_days'] ?? -1);
+                $first = new \DateTime($r['remind_date']);
+                if ($freq === -1) {
+                    // one-off
+                    $dStr = $first->format('Y-m-d');
+                    $occurrences[] = [
+                        'date' => $dStr,
+                        'reminder_id' => (int)$r['reminder_id'],
+                        'title' => $r['title'],
+                        'notes' => $r['notes'],
+                        'plant_id' => (int)$r['plant_id'],
+                        'plant_name' => $r['plant_name'] ?? null,
+                    ];
+                } elseif ($freq > 0) {
+                    // recurring: find occurrences within [start, end]
+                    if ($first > $end) {
+                        continue;
+                    }
+
+                    // advance to first occurrence >= start
+                    $d = clone $first;
+                    if ($d < $start) {
+                        $diff = (int)(($start->getTimestamp() - $d->getTimestamp()) / 86400);
+                        $steps = (int)floor($diff / $freq);
+                        if ($steps > 0) {
+                            $d->modify('+' . ($steps * $freq) . ' days');
+                        }
+                        while ($d < $start) {
+                            $d->modify('+' . $freq . ' days');
+                        }
+                    }
+
+                    while ($d <= $end) {
+                        $occurrences[] = [
+                            'date' => $d->format('Y-m-d'),
+                            'reminder_id' => (int)$r['reminder_id'],
+                            'title' => $r['title'],
+                            'notes' => $r['notes'],
+                            'plant_id' => (int)$r['plant_id'],
+                            'plant_name' => $r['plant_name'] ?? null,
+                        ];
+                        $d->modify('+' . $freq . ' days');
+                    }
+                }
+            }
+
+            return $this->json(array_values($occurrences));
+        } catch (\Exception $e) {
+            // On error, return empty list (do not expose internals)
+            return $this->json([]);
+        }
+    }
 }
