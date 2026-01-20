@@ -446,4 +446,117 @@ class AdminController extends BaseController
 
         return $this->html(['errors' => $errors, 'success' => $success, 'plant' => $plant, 'imagePath' => $imagePath], 'edit_plant');
     }
+
+    /**
+     * Show the Create Schedule page (placeholder) and handle form submissions for schedules and plans.
+     *
+     * Supports two modes: 'schedule' (recurring reminders) and 'plan' (single-event reminders).
+     */
+    public function createSchedule(Request $request): Response
+    {
+        $db = Connection::getInstance();
+        $userId = $this->user->getId();
+
+        // Fetch user's plants so the UI can offer a selection
+        $stmt = $db->prepare('SELECT plant_id, common_name FROM plants WHERE user_id = ? ORDER BY common_name ASC');
+        $stmt->execute([$userId]);
+        $plants = $stmt->fetchAll();
+
+        $errors = [];
+
+        if ($request->isPost()) {
+            $data = $request->post();
+            $type = isset($data['type']) ? $data['type'] : 'schedule'; // 'schedule' or 'plan'
+
+            if ($type === 'schedule') {
+                // Validate plant selection
+                $plantId = (int)($data['plant_id'] ?? 0);
+                if ($plantId <= 0) {
+                    $errors[] = 'Please select a plant.';
+                } else {
+                    $found = false;
+                    foreach ($plants as $p) {
+                        if ((int)$p['plant_id'] === $plantId) { $found = true; break; }
+                    }
+                    if (!$found) { $errors[] = 'Selected plant not found.'; }
+                }
+
+                // Frequency (days)
+                $frequency = (int)($data['frequency'] ?? 0);
+                if ($frequency <= 0) { $errors[] = 'Frequency must be a positive number of days.'; }
+
+                // First date: must be valid and in the future
+                $firstDate = trim((string)($data['first_date'] ?? ''));
+                $d = \DateTime::createFromFormat('Y-m-d', $firstDate);
+                $isValidDate = $d && $d->format('Y-m-d') === $firstDate;
+                $today = new \DateTime('today');
+                if (!$isValidDate) { $errors[] = 'First date is not a valid date (YYYY-MM-DD).'; }
+                else if ($d <= $today) { $errors[] = 'First date must be in the future.'; }
+
+                // Title handling
+                $titleOption = trim((string)($data['title_option'] ?? ''));
+                $allowed = ['watering', 'change_of_place', 'fertilize', 'soil_change', 'custom'];
+                if (!in_array($titleOption, $allowed, true)) { $errors[] = 'Please select a valid title option.'; }
+
+                if ($titleOption === 'custom') {
+                    $title = trim((string)($data['title_custom'] ?? ''));
+                    if ($title === '') { $errors[] = 'Custom title is required when "Custom" is selected.'; }
+                    elseif (mb_strlen($title) > 50) { $errors[] = 'Custom title must be at most 50 characters.'; }
+                } else {
+                    $map = [
+                        'watering' => 'watering',
+                        'change_of_place' => 'change of place',
+                        'fertilize' => 'fertilize',
+                        'soil_change' => 'soil change'
+                    ];
+                    $title = $map[$titleOption] ?? $titleOption;
+                }
+
+                $notes = trim((string)($data['notes'] ?? ''));
+
+                if (empty($errors)) {
+                    $stmt = $db->prepare('INSERT INTO reminders (user_id, plant_id, remind_date, frequency_days, title, notes, active) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                    $stmt->execute([$userId, $plantId, $firstDate, $frequency, $title, $notes, 1]);
+                    return $this->redirect($this->url('admin.index'));
+                }
+            } else {
+                // Plan (single event). Date required, plant optional per UI; but DB requires plant_id (not null/fk)
+                $planDate = trim((string)($data['plan_date'] ?? ''));
+                $d = \DateTime::createFromFormat('Y-m-d', $planDate);
+                $isValidDate = $d && $d->format('Y-m-d') === $planDate;
+                $today = new \DateTime('today');
+                if (!$isValidDate) { $errors[] = 'Plan date is not a valid date (YYYY-MM-DD).'; }
+                else if ($d < $today) { $errors[] = 'Plan date cannot be in the past.'; }
+
+                $plantId = (int)($data['plan_plant_id'] ?? 0);
+                if ($plantId > 0) {
+                    $found = false;
+                    foreach ($plants as $p) { if ((int)$p['plant_id'] === $plantId) { $found = true; break; } }
+                    if (!$found) { $errors[] = 'Selected plant not found.'; }
+                } else {
+                    // The database requires plant_id not null; if user didn't select a plant, try to use the first plant
+                    if (!empty($plants)) {
+                        $plantId = (int)$plants[0]['plant_id'];
+                    } else {
+                        $errors[] = 'No plant selected. Please add a plant first.';
+                    }
+                }
+
+                $title = trim((string)($data['plan_title'] ?? ''));
+                if ($title === '') { $errors[] = 'Title is required for a plan.'; }
+                elseif (mb_strlen($title) > 50) { $errors[] = 'Title must be at most 50 characters.'; }
+
+                $notes = trim((string)($data['plan_notes'] ?? ''));
+
+                if (empty($errors)) {
+                    // frequency_days = -1 for plans to indicate one-off
+                    $stmt = $db->prepare('INSERT INTO reminders (user_id, plant_id, remind_date, frequency_days, title, notes, active) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                    $stmt->execute([$userId, $plantId, $planDate, -1, $title, $notes, 1]);
+                    return $this->redirect($this->url('admin.index'));
+                }
+            }
+        }
+
+        return $this->html(['plants' => $plants, 'errors' => $errors], 'create_schedule');
+    }
 }
