@@ -3,6 +3,7 @@
 /** @var \Framework\Support\LinkGenerator $link */
 /** @var \Framework\Auth\AppUser $user */
 /** @var array $plants */
+/** @var string|null $flash */
 ?>
 
 <div class="container-fluid" id="admin_index" data-admin-index="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" data-admin-edit="<?= htmlspecialchars($link->url('admin.editPlant'), ENT_QUOTES) ?>" data-logged-in="<?= $user->isLoggedIn() ? '1' : '0' ?>">
@@ -11,6 +12,15 @@
             <div>
                 <!-- Welcome message removed as requested -->
             </div>
+
+            <?php if (!empty($flash)): ?>
+                <div class="mt-3">
+                    <div id="flash_alert" class="alert alert-success" role="alert">
+                        <?= htmlspecialchars($flash, ENT_QUOTES, 'UTF-8') ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="admin-actions-grid mt-5">
                 <?php if ($user->isLoggedIn()): ?>
                     <a href="#" id="view_calendar_btn" class="admin-action-btn">View Calendar</a>
@@ -98,6 +108,20 @@
 <form id="delete_form" method="post" action="<?= $link->url('admin.deletePlant') ?>" style="display:none;">
     <input type="hidden" name="plant_id" id="delete_plant_id" value="">
 </form>
+
+<script>
+    // Auto-dismiss flash alert after 3 seconds
+    document.addEventListener('DOMContentLoaded', function(){
+        var flash = document.getElementById('flash_alert');
+        if (flash) {
+            setTimeout(function(){
+                flash.style.transition = 'opacity 0.5s ease';
+                flash.style.opacity = '0';
+                setTimeout(function(){ if (flash && flash.parentNode) flash.parentNode.removeChild(flash); }, 500);
+            }, 3000);
+        }
+    });
+</script>
 
 <script src="<?= htmlspecialchars($link->asset('js/admin_index.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($link->asset('js/admin_calendar.js'), ENT_QUOTES) ?>"></script>

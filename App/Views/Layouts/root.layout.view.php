@@ -41,6 +41,9 @@
         <?php if ($user->isLoggedIn()) { ?>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
+                    <a class="nav-link" href="<?= $link->url('auth.settings') ?>">Settings</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="<?= $link->url('auth.logout') ?>">Log out</a>
                 </li>
             </ul>

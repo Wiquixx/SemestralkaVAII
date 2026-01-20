@@ -80,7 +80,13 @@ class AdminController extends BaseController
             $plants = $stmt->fetchAll();
         }
 
-        return $this->html(compact('plants'));
+        // Read and clear flash message (if any) so it can be displayed once in the view
+        $flash = $this->app->getSession()->get('flash_message');
+        if ($flash !== null) {
+            $this->app->getSession()->remove('flash_message');
+        }
+
+        return $this->html(compact('plants', 'flash'));
     }
 
     /**

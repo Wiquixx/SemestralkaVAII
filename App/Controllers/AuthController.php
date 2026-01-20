@@ -137,4 +137,118 @@ class AuthController extends BaseController
         $this->app->getAuthenticator()->logout();
         return $this->redirect($this->app->getLinkGenerator()->url('home.index'));
     }
+
+    /**
+     * Display settings page and handle change password requests.
+     *
+     * Form fields (POST): old_password, password, confirm_password, submit
+     */
+    public function settings(Request $request): Response
+    {
+        // Only allow logged-in users to access settings
+        if (!$this->user->isLoggedIn()) {
+            return $this->redirect(Configuration::LOGIN_URL);
+        }
+
+        $errors = [];
+        $success = null;
+        // current display name to prefill the form
+        $displayName = $this->user->getName();
+
+        if ($request->hasValue('submit')) {
+            // Read display name (always present in the form)
+            $displayName = trim((string)$request->value('display_name'));
+
+            $old = (string)$request->value('old_password');
+            $new = (string)$request->value('password');
+            $confirm = (string)$request->value('confirm_password');
+
+            // Display name validation
+            if ($displayName === '') {
+                $errors[] = 'Display name is required.';
+            } elseif (strlen($displayName) > 100) {
+                $errors[] = 'Display name must be at most 100 characters.';
+            }
+
+            // If user provided any password fields, validate password change inputs
+            $passwordAttempted = ($old !== '' || $new !== '' || $confirm !== '');
+            if ($passwordAttempted) {
+                if ($old === '' || $new === '' || $confirm === '') {
+                    $errors[] = 'All password fields are required to change the password.';
+                }
+
+                if ($new !== '' && strlen($new) < 6) {
+                    $errors[] = 'New password must be at least 6 characters long.';
+                }
+
+                if ($new !== $confirm) {
+                    $errors[] = 'New passwords do not match.';
+                }
+            }
+
+            if (empty($errors)) {
+                try {
+                    $db = \Framework\DB\Connection::getInstance();
+                    // Identify current user by email (available via AppUser)
+                    $email = $this->user->getEmail();
+
+                    $changed = false; // track whether we updated anything
+
+                    // Handle password change if requested
+                    if ($passwordAttempted) {
+                        $stmt = $db->prepare('SELECT password_hash FROM users WHERE email = ?');
+                        $stmt->execute([$email]);
+                        $row = $stmt->fetch();
+                        $hash = $row['password_hash'] ?? null;
+
+                        if (!$hash || !password_verify($old, $hash)) {
+                            $errors[] = 'Old password is incorrect.';
+                        } else {
+                            $newHash = password_hash($new, PASSWORD_DEFAULT);
+                            $upd = $db->prepare('UPDATE users SET password_hash = ? WHERE email = ?');
+                            $upd->execute([$newHash, $email]);
+                            $changed = true;
+                            $success = 'Password changed successfully.';
+                        }
+                    }
+
+                    // Handle display name update (if changed)
+                    if ($displayName !== $this->user->getName()) {
+                        $updName = $db->prepare('UPDATE users SET display_name = ? WHERE email = ?');
+                        $updName->execute([$displayName, $email]);
+
+                        // Replace identity in session so the new display name is used immediately
+                        $newIdentity = new \App\Models\User($this->user->getId(), $this->user->getEmail(), $displayName);
+                        $this->app->getSession()->set(Configuration::IDENTITY_SESSION_KEY, $newIdentity);
+
+                        // Refresh controller user reference so layout and subsequent calls in this request see the new name
+                        $this->user = $this->app->getAppUser();
+
+                        $changed = true;
+
+                        // If we didn't already set a success message from password change, set one for name
+                        if ($success === null) {
+                            $success = 'Display name updated successfully.';
+                        } else {
+                            // combine messages
+                            $success .= ' Display name updated.';
+                        }
+                    }
+
+                    // If we changed something and there are no errors, redirect to the user menu to avoid history issues
+                    if ($changed && empty($errors)) {
+                        // store a flash message in session so admin.index can show confirmation
+                        $flashMsg = $success ?? 'Settings updated.';
+                        $this->app->getSession()->set('flash_message', $flashMsg);
+                        return $this->redirect($this->url('admin.index'));
+                    }
+
+                } catch (\Exception $e) {
+                    $errors[] = 'Database error: ' . $e->getMessage();
+                }
+            }
+        }
+
+        return $this->html(compact('errors', 'success', 'displayName'));
+    }
 }
