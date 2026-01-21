@@ -5,6 +5,10 @@ namespace App\Controllers;
 use Framework\Core\BaseController;
 use Framework\Http\Request;
 use Framework\Http\Responses\Response;
+use App\Models\Plant;
+use App\Models\Image;
+use App\Models\Reminder;
+use App\Models\UserRepository;
 use Framework\DB\Connection;
 
 /**
@@ -59,40 +63,12 @@ class AdminController extends BaseController
         $plants = [];
         if ($this->user->isLoggedIn()) {
             $userId = $this->user->getId();
-            $db = Connection::getInstance();
 
             // Determine sorting from request (whitelisted). Default is name_asc
             $sort = (string)($request->value('sort') ?? 'name_asc');
-            $orderBy = 'p.common_name ASC';
-            switch ($sort) {
-                case 'name_asc':
-                    $orderBy = 'p.common_name ASC';
-                    break;
-                case 'name_desc':
-                    $orderBy = 'p.common_name DESC';
-                    break;
-                case 'date_purchased':
-                    $orderBy = 'p.purchase_date ASC, p.common_name ASC';
-                    break;
-                case 'scientific_name':
-                    // Put rows with empty/NULL scientific_name last, then sort by scientific_name, then by common_name
-                    $orderBy = "(CASE WHEN p.scientific_name IS NULL OR p.scientific_name = '' THEN 1 ELSE 0 END), p.scientific_name ASC, p.common_name ASC";
-                    break;
-                default:
-                    $orderBy = 'p.common_name ASC';
-            }
 
-            // Select plant info and the first image file_path (if any) for each plant, ordered according to $orderBy
-            $sql = "SELECT p.plant_id, p.common_name, (
-                SELECT i.file_path FROM images i WHERE i.plant_id = p.plant_id LIMIT 1
-            ) AS file_path
-            FROM plants p
-            WHERE p.user_id = ?
-            ORDER BY " . $orderBy;
-
-            $stmt = $db->prepare($sql);
-            $stmt->execute([$userId]);
-            $plants = $stmt->fetchAll();
+            // Use model to fetch plants
+            $plants = Plant::getForUser($userId, $sort);
         }
 
         // Read and clear flash message (if any) so it can be displayed once in the view
@@ -140,13 +116,12 @@ class AdminController extends BaseController
             if (!$errors) {
                 try {
                     $user_id = $this->user->getId();
-                    $db = Connection::getInstance();
 
-                    // Ensure plant_uid column exists (MySQL 8+ supports IF NOT EXISTS)
+                    // Ensure plant_uid column exists (attempt, ignore failures)
+                    $db = Connection::getInstance();
                     try {
                         $db->prepare('ALTER TABLE plants ADD COLUMN IF NOT EXISTS plant_uid VARCHAR(100) UNIQUE')->execute();
                     } catch (\Exception $e) {
-                        // If the server doesn't support IF NOT EXISTS, attempt a safe add ignoring errors
                         try {
                             $db->prepare('ALTER TABLE plants ADD COLUMN plant_uid VARCHAR(100) UNIQUE')->execute();
                         } catch (\Exception $ex) {
@@ -154,82 +129,21 @@ class AdminController extends BaseController
                         }
                     }
 
-                    // Generate unique plant uid: timestamp + user id + short uniq
-                    $timestamp = (new \DateTime())->format('YmdHis');
-                    $uniq = substr(uniqid(), -6);
-                    $plant_uid = $timestamp . '_' . $user_id . '_' . $uniq;
-
-                    // Begin transaction to ensure both plant and image are saved together
-                    $db->beginTransaction();
-
-                    $stmt = $db->prepare('INSERT INTO plants (plant_uid, user_id, common_name, scientific_name, location, purchase_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)');
-                    $stmt->execute([$plant_uid, $user_id, $common_name, $scientific_name, $location, $purchase_date, $notes]);
-
-                    // get newly inserted plant id
-                    $plantId = (int)$db->lastInsertId();
-
-                    // Handle uploaded image if present
+                    // Use Plant model to create the plant (it will handle image storage)
                     $uploaded = $request->file('image');
-                    $movedFilePath = null;
-                    if ($uploaded && $uploaded->isOk()) {
-                        // validate size (<=5MB) and mime type
-                        $maxBytes = 5 * 1024 * 1024;
-                        if ($uploaded->getSize() > $maxBytes) {
-                            throw new \Exception('Uploaded image exceeds 5MB size limit.');
-                        }
-                        // determine mime type from tmp file
-                        $tmpPath = $uploaded->getFileTempPath();
-                        $finfoType = @mime_content_type($tmpPath);
-                        $allowed = ['image/jpeg', 'image/png', 'image/gif'];
-                        if (!in_array($finfoType, $allowed, true)) {
-                            throw new \Exception('Uploaded file is not a permitted image type (JPEG, PNG, GIF).');
-                        }
-
-                        // ensure upload dir exists
-                        $projectRoot = dirname(__DIR__, 2);
-                        $uploadDir = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads';
-                        if (!is_dir($uploadDir)) {
-                            @mkdir($uploadDir, 0755, true);
-                        }
-
-                        $origName = $uploaded->getName();
-                        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                        if ($ext === '') {
-                            // try to map mime type to ext
-                            $map = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
-                            $ext = $map[$finfoType] ?? 'bin';
-                        }
-
-                        $newFileName = 'plant_' . $plantId . '_' . substr(uniqid(), -8) . '.' . $ext;
-                        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $newFileName;
-
-                        if (!$uploaded->store($targetPath)) {
-                            throw new \Exception('Failed to move uploaded file.');
-                        }
-
-                        // store web-accessible path (use forward slashes)
-                        $webPath = '/uploads/' . $newFileName;
-
-                        // insert image record
-                        $stmtImg = $db->prepare('INSERT INTO images (plant_id, file_path) VALUES (?, ?)');
-                        $stmtImg->execute([$plantId, $webPath]);
-
-                        // remember moved path for possible cleanup on failure
-                        $movedFilePath = $targetPath;
-                    }
-
-                    $db->commit();
+                    $plantId = Plant::create($user_id, [
+                        'common_name' => $common_name,
+                        'scientific_name' => $scientific_name,
+                        'location' => $location,
+                        'purchase_date' => $purchase_date,
+                        'notes' => $notes
+                    ], $uploaded);
 
                     $success = true;
 
                     // Redirect back to admin index so the new plant is immediately visible
                     return $this->redirect($this->url('admin.index'));
                 } catch (\Exception $e) {
-                    // cleanup: if file moved, try to remove it
-                    try { $db->rollBack(); } catch (\Exception $_) {}
-                    if (!empty($movedFilePath) && is_file($movedFilePath)) {
-                        @unlink($movedFilePath);
-                    }
                     $errors[] = 'Error: ' . $e->getMessage();
                 }
             }
@@ -259,63 +173,16 @@ class AdminController extends BaseController
             return $this->redirect($this->url('admin.index'));
         }
 
-        $db = Connection::getInstance();
         try {
-            // Verify ownership
-            $stmt = $db->prepare('SELECT user_id FROM plants WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
-            $row = $stmt->fetch();
-            if (!$row) {
-                return $this->redirect($this->url('admin.index'));
-            }
-            $ownerId = (int)$row['user_id'];
-            if ($ownerId !== $this->user->getId()) {
-                // Not the owner
-                return $this->redirect($this->url('admin.index'));
-            }
+            $images = Plant::delete($plantId, $this->user->getId());
 
-            // Begin transaction
-            $db->beginTransaction();
-
-            // Find image file paths to unlink
-            $stmt = $db->prepare('SELECT file_path FROM images WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
-            $images = $stmt->fetchAll();
-
-            // Delete image records
-            $stmt = $db->prepare('DELETE FROM images WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
-
-            // Delete reminders related to this plant
-            $stmt = $db->prepare('DELETE FROM reminders WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
-
-
-            // Delete the plant
-            $stmt = $db->prepare('DELETE FROM plants WHERE plant_id = ?');
-            $stmt->execute([$plantId]);
-
-            $db->commit();
-
-            // Unlink files after commit (so DB changes are atomic even if unlink fails)
-            $projectRoot = dirname(__DIR__, 2); // project root
-            foreach ($images as $img) {
-                $file = trim((string)($img['file_path'] ?? ''));
-                if ($file === '') continue;
-                $filePath = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $file), DIRECTORY_SEPARATOR);
-                try {
-                    if (is_file($filePath)) {
-                        @unlink($filePath);
-                    }
-                } catch (\Exception $e) {
-                    // ignore unlink errors
-                }
+            // Unlink files after commit
+            if (!empty($images)) {
+                Image::unlinkFiles($images);
             }
 
             return $this->redirect($this->url('admin.index'));
         } catch (\Exception $e) {
-            try { $db->rollBack(); } catch (\Exception $_) {}
-            // you might want to log the error; for now redirect back
             return $this->redirect($this->url('admin.index'));
         }
     }
@@ -327,7 +194,6 @@ class AdminController extends BaseController
     {
         $errors = [];
         $success = false;
-        $db = Connection::getInstance();
 
         // plant id can be in GET (id) or POST
         $plantId = (int)($request->value('id') ?? $request->value('plant_id') ?? 0);
@@ -336,9 +202,7 @@ class AdminController extends BaseController
         }
 
         // Verify ownership and fetch current plant
-        $stmt = $db->prepare('SELECT * FROM plants WHERE plant_id = ?');
-        $stmt->execute([$plantId]);
-        $plant = $stmt->fetch();
+        $plant = Plant::getById($plantId);
         if (!$plant) {
             return $this->redirect($this->url('admin.index'));
         }
@@ -347,10 +211,8 @@ class AdminController extends BaseController
         }
 
         // Fetch first image for this plant (if any) to show in edit form
-        $stmtImg = $db->prepare('SELECT file_path FROM images WHERE plant_id = ? LIMIT 1');
-        $stmtImg->execute([$plantId]);
-        $imgRow = $stmtImg->fetch();
-        $imagePath = $imgRow['file_path'] ?? null;
+        $images = Image::getImagesByPlant($plantId);
+        $imagePath = $images[0]['file_path'] ?? null;
 
         if ($request->isPost()) {
             $data = $request->post();
@@ -381,82 +243,24 @@ class AdminController extends BaseController
 
             if (empty($errors)) {
                 try {
-                    // Begin transaction to update plant and optionally store image
-                    $db->beginTransaction();
-
-                    $stmt = $db->prepare('UPDATE plants SET common_name = ?, scientific_name = ?, location = ?, purchase_date = ?, notes = ? WHERE plant_id = ? AND user_id = ?');
-                    $stmt->execute([$common_name, $scientific_name, $location, $purchase_date, $notes, $plantId, $this->user->getId()]);
-
-                    // Handle uploaded image if present
                     $uploaded = $request->file('image');
-                    $movedFilePath = null;
-                    $oldImages = [];
-                    if ($uploaded && $uploaded->isOk()) {
-                        $maxBytes = 5 * 1024 * 1024;
-                        if ($uploaded->getSize() > $maxBytes) {
-                            throw new \Exception('Uploaded image exceeds 5MB size limit.');
-                        }
-                        $tmpPath = $uploaded->getFileTempPath();
-                        $finfoType = @mime_content_type($tmpPath);
-                        $allowed = ['image/jpeg', 'image/png', 'image/gif'];
-                        if (!in_array($finfoType, $allowed, true)) {
-                            throw new \Exception('Uploaded file is not a permitted image type (JPEG, PNG, GIF).');
-                        }
 
-                        $projectRoot = dirname(__DIR__, 2);
-                        $uploadDir = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads';
-                        if (!is_dir($uploadDir)) {
-                            @mkdir($uploadDir, 0755, true);
-                        }
-
-                        $origName = $uploaded->getName();
-                        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-                        if ($ext === '') {
-                            $map = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif'];
-                            $ext = $map[$finfoType] ?? 'bin';
-                        }
-
-                        $newFileName = 'plant_' . $plantId . '_' . substr(uniqid(), -8) . '.' . $ext;
-                        $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $newFileName;
-
-                        if (!$uploaded->store($targetPath)) {
-                            throw new \Exception('Failed to move uploaded file.');
-                        }
-
-                        $webPath = '/uploads/' . $newFileName;
-                        // Remove existing image records for this plant so we keep only the new one
-                        $stmtOld = $db->prepare('SELECT file_path FROM images WHERE plant_id = ?');
-                        $stmtOld->execute([$plantId]);
-                        $oldImages = $stmtOld->fetchAll();
-                        $stmtDel = $db->prepare('DELETE FROM images WHERE plant_id = ?');
-                        $stmtDel->execute([$plantId]);
-
-                        $stmtImg = $db->prepare('INSERT INTO images (plant_id, file_path) VALUES (?, ?)');
-                        $stmtImg->execute([$plantId, $webPath]);
-
-                        $movedFilePath = $targetPath;
-                    }
-
-                    $db->commit();
+                    $oldImages = Plant::update($plantId, $this->user->getId(), [
+                        'common_name' => $common_name,
+                        'scientific_name' => $scientific_name,
+                        'location' => $location,
+                        'purchase_date' => $purchase_date,
+                        'notes' => $notes
+                    ], $uploaded);
 
                     // Unlink old image files now that DB transaction committed
                     if (!empty($oldImages)) {
-                        $projectRoot = dirname(__DIR__, 2);
-                        foreach ($oldImages as $img) {
-                            $file = trim((string)($img['file_path'] ?? ''));
-                            if ($file === '') continue;
-                            $filePath = $projectRoot . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . ltrim(str_replace('/', DIRECTORY_SEPARATOR, $file), DIRECTORY_SEPARATOR);
-                            try { if (is_file($filePath)) { @unlink($filePath); } } catch (\Exception $_) {}
-                        }
+                        Image::unlinkFiles($oldImages);
                     }
 
                     $success = true;
                     return $this->redirect($this->url('admin.index'));
                 } catch (\Exception $e) {
-                    try { $db->rollBack(); } catch (\Exception $_) {}
-                    if (!empty($movedFilePath) && is_file($movedFilePath)) {
-                        @unlink($movedFilePath);
-                    }
                     $errors[] = 'Database error: ' . $e->getMessage();
                 }
             }
@@ -472,13 +276,10 @@ class AdminController extends BaseController
      */
     public function createSchedule(Request $request): Response
     {
-        $db = Connection::getInstance();
         $userId = $this->user->getId();
 
         // Fetch user's plants so the UI can offer a selection
-        $stmt = $db->prepare('SELECT plant_id, common_name FROM plants WHERE user_id = ? ORDER BY common_name ASC');
-        $stmt->execute([$userId]);
-        $plants = $stmt->fetchAll();
+        $plants = Plant::getForUser($userId);
 
         $errors = [];
 
@@ -533,12 +334,19 @@ class AdminController extends BaseController
                 $notes = trim((string)($data['notes'] ?? ''));
 
                 if (empty($errors)) {
-                    $stmt = $db->prepare('INSERT INTO reminders (user_id, plant_id, remind_date, frequency_days, title, notes, active) VALUES (?, ?, ?, ?, ?, ?, ?)');
-                    $stmt->execute([$userId, $plantId, $firstDate, $frequency, $title, $notes, 1]);
+                    Reminder::insert([
+                        'user_id' => $userId,
+                        'plant_id' => $plantId,
+                        'remind_date' => $firstDate,
+                        'frequency_days' => $frequency,
+                        'title' => $title,
+                        'notes' => $notes,
+                        'active' => 1
+                    ]);
                     return $this->redirect($this->url('admin.index'));
                 }
             } else {
-                // Plan (single event). Date required, plant optional per UI; but DB requires plant_id (not null/fk)
+                // Plan (single event).
                 $planDate = trim((string)($data['plan_date'] ?? ''));
                 $d = \DateTime::createFromFormat('Y-m-d', $planDate);
                 $isValidDate = $d && $d->format('Y-m-d') === $planDate;
@@ -552,7 +360,6 @@ class AdminController extends BaseController
                     foreach ($plants as $p) { if ((int)$p['plant_id'] === $plantId) { $found = true; break; } }
                     if (!$found) { $errors[] = 'Selected plant not found.'; }
                 } else {
-                    // The database requires plant_id not null; if user didn't select a plant, try to use the first plant
                     if (!empty($plants)) {
                         $plantId = (int)$plants[0]['plant_id'];
                     } else {
@@ -567,9 +374,15 @@ class AdminController extends BaseController
                 $notes = trim((string)($data['plan_notes'] ?? ''));
 
                 if (empty($errors)) {
-                    // frequency_days = -1 for plans to indicate one-off
-                    $stmt = $db->prepare('INSERT INTO reminders (user_id, plant_id, remind_date, frequency_days, title, notes, active) VALUES (?, ?, ?, ?, ?, ?, ?)');
-                    $stmt->execute([$userId, $plantId, $planDate, -1, $title, $notes, 1]);
+                    Reminder::insert([
+                        'user_id' => $userId,
+                        'plant_id' => $plantId,
+                        'remind_date' => $planDate,
+                        'frequency_days' => -1,
+                        'title' => $title,
+                        'notes' => $notes,
+                        'active' => 1
+                    ]);
                     return $this->redirect($this->url('admin.index'));
                 }
             }
@@ -592,77 +405,9 @@ class AdminController extends BaseController
         if ($month > 12) $month = 12;
 
         try {
-            $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
-            $end = clone $start;
-            $end->modify('last day of this month');
-
-            $db = Connection::getInstance();
-            // Fetch one-off reminders within the month, and recurring reminders that started on or before month end
-            $sql = "SELECT r.reminder_id, r.user_id, r.plant_id, r.remind_date, r.frequency_days, r.title, r.notes, p.common_name AS plant_name
-                    FROM reminders r
-                    JOIN plants p ON p.plant_id = r.plant_id
-                    WHERE r.user_id = ?
-                      AND r.active = 1
-                      AND (
-                        (r.frequency_days = -1 AND r.remind_date BETWEEN ? AND ?)
-                        OR (r.frequency_days > 0 AND r.remind_date <= ?)
-                      )";
-
-            $stmt = $db->prepare($sql);
-            $stmt->execute([$this->user->getId(), $start->format('Y-m-d'), $end->format('Y-m-d'), $end->format('Y-m-d')]);
-            $rows = $stmt->fetchAll();
-
-            $occurrences = [];
-            foreach ($rows as $r) {
-                $freq = (int)($r['frequency_days'] ?? -1);
-                $first = new \DateTime($r['remind_date']);
-                if ($freq === -1) {
-                    // one-off
-                    $dStr = $first->format('Y-m-d');
-                    $occurrences[] = [
-                        'date' => $dStr,
-                        'reminder_id' => (int)$r['reminder_id'],
-                        'title' => $r['title'],
-                        'notes' => $r['notes'],
-                        'plant_id' => (int)$r['plant_id'],
-                        'plant_name' => $r['plant_name'] ?? null,
-                    ];
-                } elseif ($freq > 0) {
-                    // recurring: find occurrences within [start, end]
-                    if ($first > $end) {
-                        continue;
-                    }
-
-                    // advance to first occurrence >= start
-                    $d = clone $first;
-                    if ($d < $start) {
-                        $diff = (int)(($start->getTimestamp() - $d->getTimestamp()) / 86400);
-                        $steps = (int)floor($diff / $freq);
-                        if ($steps > 0) {
-                            $d->modify('+' . ($steps * $freq) . ' days');
-                        }
-                        while ($d < $start) {
-                            $d->modify('+' . $freq . ' days');
-                        }
-                    }
-
-                    while ($d <= $end) {
-                        $occurrences[] = [
-                            'date' => $d->format('Y-m-d'),
-                            'reminder_id' => (int)$r['reminder_id'],
-                            'title' => $r['title'],
-                            'notes' => $r['notes'],
-                            'plant_id' => (int)$r['plant_id'],
-                            'plant_name' => $r['plant_name'] ?? null,
-                        ];
-                        $d->modify('+' . $freq . ' days');
-                    }
-                }
-            }
-
-            return $this->json(array_values($occurrences));
+            $occurrences = Reminder::occurrencesForMonth($this->user->getId(), $year, $month);
+            return $this->json($occurrences);
         } catch (\Exception $e) {
-            // On error, return empty list (do not expose internals)
             return $this->json([]);
         }
     }
@@ -675,15 +420,7 @@ class AdminController extends BaseController
         if (!$this->user->isLoggedIn()) {
             return $this->json([]);
         }
-        $db = Connection::getInstance();
-        $sql = "SELECT r.reminder_id, r.user_id, r.plant_id, r.remind_date, r.frequency_days, r.title, r.notes, p.common_name AS plant_name
-                FROM reminders r
-                LEFT JOIN plants p ON p.plant_id = r.plant_id
-                WHERE r.user_id = ?
-                ORDER BY r.remind_date DESC, r.reminder_id DESC";
-        $stmt = $db->prepare($sql);
-        $stmt->execute([$this->user->getId()]);
-        $rows = $stmt->fetchAll();
+        $rows = Reminder::listForUser($this->user->getId());
         return $this->json($rows);
     }
 
@@ -692,16 +429,12 @@ class AdminController extends BaseController
      */
     public function editReminder(Request $request): Response
     {
-        $db = Connection::getInstance();
         $reminderId = (int)($request->value('id') ?? $request->value('reminder_id') ?? 0);
         if ($reminderId <= 0) {
             return $this->redirect($this->url('admin.createSchedule'));
         }
 
-        // Fetch reminder
-        $stmt = $db->prepare('SELECT * FROM reminders WHERE reminder_id = ?');
-        $stmt->execute([$reminderId]);
-        $rem = $stmt->fetch();
+        $rem = Reminder::getById($reminderId);
         if (!$rem) {
             return $this->redirect($this->url('admin.createSchedule'));
         }
@@ -709,15 +442,11 @@ class AdminController extends BaseController
             return $this->redirect($this->url('admin.createSchedule'));
         }
 
-        // Fetch plants for selection
-        $stmt = $db->prepare('SELECT plant_id, common_name FROM plants WHERE user_id = ? ORDER BY common_name ASC');
-        $stmt->execute([$this->user->getId()]);
-        $plants = $stmt->fetchAll();
+        $plants = Plant::getForUser($this->user->getId());
 
         $errors = [];
         if ($request->isPost()) {
             $data = $request->post();
-            // Determine if plan (one-off) or schedule (recurring)
             $isPlan = (isset($data['type']) && $data['type'] === 'plan') || (isset($data['frequency_days']) && (int)$data['frequency_days'] === -1);
 
             $remind_date = trim((string)($data['remind_date'] ?? ''));
@@ -738,7 +467,6 @@ class AdminController extends BaseController
                 if (!$found) { $errors[] = 'Selected plant not found.'; }
             } else {
                 if (!empty($plants)) {
-                    // fallback to first plant
                     $plantId = (int)$plants[0]['plant_id'];
                 } else {
                     $errors[] = 'No plant selected. Please add a plant first.';
@@ -758,8 +486,13 @@ class AdminController extends BaseController
             }
 
             if (empty($errors)) {
-                $stmt = $db->prepare('UPDATE reminders SET plant_id = ?, remind_date = ?, frequency_days = ?, title = ?, notes = ? WHERE reminder_id = ? AND user_id = ?');
-                $stmt->execute([$plantId, $remind_date, $frequencyDays, $title, $notes, $reminderId, $this->user->getId()]);
+                Reminder::update($reminderId, $this->user->getId(), [
+                    'plant_id' => $plantId,
+                    'remind_date' => $remind_date,
+                    'frequency_days' => $frequencyDays,
+                    'title' => $title,
+                    'notes' => $notes
+                ]);
                 return $this->redirect($this->url('admin.createSchedule'));
             }
 
@@ -786,19 +519,13 @@ class AdminController extends BaseController
         if ($reminderId <= 0) {
             return $this->json(['success' => false]);
         }
-        $db = Connection::getInstance();
-        try {
-            // Verify ownership
-            $stmt = $db->prepare('SELECT user_id FROM reminders WHERE reminder_id = ?');
-            $stmt->execute([$reminderId]);
-            $row = $stmt->fetch();
-            if (!$row) return $this->json(['success' => false]);
-            if ((int)$row['user_id'] !== $this->user->getId()) {
-                return $this->json(['success' => false]);
-            }
 
-            $stmt = $db->prepare('DELETE FROM reminders WHERE reminder_id = ?');
-            $stmt->execute([$reminderId]);
+        try {
+            $rem = Reminder::getById($reminderId);
+            if (!$rem) return $this->json(['success' => false]);
+            if ((int)$rem['user_id'] !== $this->user->getId()) return $this->json(['success' => false]);
+
+            Reminder::delete($reminderId);
             return $this->json(['success' => true]);
         } catch (\Exception $e) {
             return $this->json(['success' => false]);
@@ -815,23 +542,7 @@ class AdminController extends BaseController
      */
     public function users(Request $request): Response
     {
-        $db = Connection::getInstance();
-        $sql = "SELECT u.user_id, u.display_name, u.email, u.created_at,
-            COALESCE(p.plant_count, 0) AS plant_count,
-            COALESCE(r.reminder_count, 0) AS reminder_count
-            FROM users u
-            LEFT JOIN (
-                SELECT user_id, COUNT(*) AS plant_count FROM plants GROUP BY user_id
-            ) p ON p.user_id = u.user_id
-            LEFT JOIN (
-                SELECT user_id, COUNT(*) AS reminder_count FROM reminders GROUP BY user_id
-            ) r ON r.user_id = u.user_id
-            ORDER BY u.user_id ASC";
-
-        $stmt = $db->prepare($sql);
-        $stmt->execute([]);
-        $users = $stmt->fetchAll();
-
+        $users = UserRepository::listAllWithCounts();
         return $this->html(compact('users'));
     }
 }

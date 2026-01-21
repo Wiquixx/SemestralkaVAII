@@ -10,7 +10,7 @@
 <div class="container" style="max-width:760px;margin-top:12px;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
         <h2 style="margin:0;">Edit Schedule / Plan</h2>
-        <a href="<?= htmlspecialchars($link->url('admin.createSchedule'), ENT_QUOTES) ?>" title="Back">&times;</a>
+        <a href="<?= htmlspecialchars($link->url('admin.createSchedule'), ENT_QUOTES) ?>" class="btn btn-secondary btn-sm">&larr; Back to menu</a>
     </div>
 
     <?php if (!empty($errors)): ?>

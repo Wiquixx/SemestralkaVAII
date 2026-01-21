@@ -9,9 +9,6 @@
 <div class="container-fluid" id="admin_index" data-admin-index="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" data-admin-edit="<?= htmlspecialchars($link->url('admin.editPlant'), ENT_QUOTES) ?>" data-logged-in="<?= $user->isLoggedIn() ? '1' : '0' ?>">
     <div class="row">
         <div class="col text-center">
-            <div>
-                <!-- Welcome message removed as requested -->
-            </div>
 
             <?php if (!empty($flash)): ?>
                 <div class="mt-3">

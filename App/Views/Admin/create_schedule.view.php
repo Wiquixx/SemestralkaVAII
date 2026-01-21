@@ -14,8 +14,8 @@
         <div class="col text-center">
             <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
                 <h2 style="margin:0;">Manage Schedules</h2>
-                <!-- X button: goes back to main admin menu -->
-                <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" aria-label="Close and return to menu" title="Close" style="font-size:24px;text-decoration:none;color:inherit;">&times;</a>
+                <!-- Back to menu button: match users view style -->
+                <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" class="btn btn-secondary btn-sm">&larr; Back to menu</a>
             </div>
 
             <?php if (!empty($errors)): ?>

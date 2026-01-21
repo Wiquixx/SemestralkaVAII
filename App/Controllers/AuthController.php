@@ -8,7 +8,8 @@ use Framework\Core\BaseController;
 use Framework\Http\Request;
 use Framework\Http\Responses\Response;
 use Framework\Http\Responses\ViewResponse;
-use Framework\DB\Connection;
+use App\Models\UserRepository;
+use App\Models\User;
 
 /**
  * Class AuthController
@@ -98,18 +99,14 @@ class AuthController extends BaseController
 
             if (empty($errors)) {
                 try {
-                    $db = Connection::getInstance();
-                    // Check duplicate email
-                    $check = $db->prepare('SELECT user_id FROM users WHERE email = ?');
-                    $check->execute([$email]);
-                    $existing = $check->fetch();
+                    // Check duplicate email via repository
+                    $existing = UserRepository::findByEmail($email);
                     if ($existing) {
                         $errors[] = 'Email is already registered.';
                     } else {
                         $hash = password_hash($password, PASSWORD_DEFAULT);
                         $displayName = strtok($email, '@');
-                        $insert = $db->prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)');
-                        $insert->execute([$email, $hash, $displayName]);
+                        UserRepository::create($email, $hash, $displayName);
 
                         // Redirect to login page after successful registration
                         return $this->redirect(Configuration::LOGIN_URL);
@@ -188,25 +185,20 @@ class AuthController extends BaseController
 
             if (empty($errors)) {
                 try {
-                    $db = \Framework\DB\Connection::getInstance();
-                    // Identify current user by email (available via AppUser)
                     $email = $this->user->getEmail();
 
                     $changed = false; // track whether we updated anything
 
                     // Handle password change if requested
                     if ($passwordAttempted) {
-                        $stmt = $db->prepare('SELECT password_hash FROM users WHERE email = ?');
-                        $stmt->execute([$email]);
-                        $row = $stmt->fetch();
+                        $row = UserRepository::findByEmail($email);
                         $hash = $row['password_hash'] ?? null;
 
                         if (!$hash || !password_verify($old, $hash)) {
                             $errors[] = 'Old password is incorrect.';
                         } else {
                             $newHash = password_hash($new, PASSWORD_DEFAULT);
-                            $upd = $db->prepare('UPDATE users SET password_hash = ? WHERE email = ?');
-                            $upd->execute([$newHash, $email]);
+                            UserRepository::updatePasswordByEmail($email, $newHash);
                             $changed = true;
                             $success = 'Password changed successfully.';
                         }
@@ -214,11 +206,10 @@ class AuthController extends BaseController
 
                     // Handle display name update (if changed)
                     if ($displayName !== $this->user->getName()) {
-                        $updName = $db->prepare('UPDATE users SET display_name = ? WHERE email = ?');
-                        $updName->execute([$displayName, $email]);
+                        UserRepository::updateDisplayNameByEmail($email, $displayName);
 
                         // Replace identity in session so the new display name is used immediately
-                        $newIdentity = new \App\Models\User($this->user->getId(), $this->user->getEmail(), $displayName);
+                        $newIdentity = new User($this->user->getId(), $this->user->getEmail(), $displayName);
                         $this->app->getSession()->set(Configuration::IDENTITY_SESSION_KEY, $newIdentity);
 
                         // Refresh controller user reference so layout and subsequent calls in this request see the new name
