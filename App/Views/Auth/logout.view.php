@@ -1,5 +1,7 @@
 <?php
 
+//Vytvorené s pomocou Github Copilot
+
 /** @var \Framework\Support\LinkGenerator $link */
 /** @var \Framework\Support\View $view */
 

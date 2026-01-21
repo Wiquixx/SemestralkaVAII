@@ -1,3 +1,4 @@
+//Vytvorené s pomocou Github Copilot
 (function () {
     // admin_calendar.js
     // Renders a simple month calendar in the existing modal, enforces ±6 months from today.

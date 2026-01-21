@@ -1,5 +1,7 @@
 <?php /** @var \Framework\Support\LinkGenerator $link */ ?>
 
+<!--Vytvorené s pomocou Github Copilot-->
+
 <div class="plantcare-main-bg">
     <div class="plantcare-center-content">
         <div class="plantcare-logo-circle">

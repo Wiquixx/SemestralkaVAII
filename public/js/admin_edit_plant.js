@@ -1,5 +1,5 @@
 // filepath: c:\Users\filip\Desktop\School\VAII\Semestralka\public\js\admin_edit_plant.js
-
+//Vytvorené s pomocou Github Copilot
 document.addEventListener('DOMContentLoaded', function(){
     var form = document.getElementById('editPlantForm');
     var dateInput = document.getElementById('purchase_date');

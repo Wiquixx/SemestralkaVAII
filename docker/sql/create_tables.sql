@@ -1,3 +1,4 @@
+-- Vytvorené s pomocou Github Copilot
 -- Table: users
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,

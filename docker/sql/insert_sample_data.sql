@@ -1,3 +1,4 @@
+-- Vytvorené s pomocou Github Copilot
 -- Vzorové dáta pre users
 INSERT INTO users (email, password_hash, display_name, status) VALUES
         ('john.doe@example.com', '$2y$10$GRA8D27bvZZw8b85CAwRee9NH5nj4CQA6PDFMc90pN9Wi4VAWq3yq', 'John Doe', 1),

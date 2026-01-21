@@ -1,5 +1,7 @@
 <?php
 
+//Vytvorené s pomocou Github Copilot
+
 namespace App\Models;
 
 use Framework\Core\IIdentity;

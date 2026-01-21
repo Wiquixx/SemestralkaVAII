@@ -1,3 +1,4 @@
+//Vytvorené s pomocou Github Copilot
 document.addEventListener('DOMContentLoaded', function(){
     var form = document.getElementById('addPlantForm');
     if(!form) return;

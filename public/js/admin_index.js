@@ -1,3 +1,4 @@
+//Vytvorené s pomocou Github Copilot
 (function () {
     // JS for Admin index page - moved from inline PHP view to keep MVC separation.
     document.addEventListener('DOMContentLoaded', function () {

@@ -1,5 +1,7 @@
 <?php
 
+//Vytvorené s pomocou Github Copilot
+
 /** @var array|null $errors */
 /** @var string|null $success */
 /** @var string|null $email */

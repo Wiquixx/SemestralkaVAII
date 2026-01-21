@@ -1,5 +1,7 @@
 <?php
 
+//Vytvorené s pomocou Github Copilot
+
 namespace App;
 
 use App\Auth\DbAuthenticator;

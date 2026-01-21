@@ -1,5 +1,7 @@
 <?php
 
+//Vytvorené s pomocou Github Copilot
+
 /** @var string $contentHTML */
 /** @var \Framework\Auth\AppUser $user */
 /** @var \Framework\Support\LinkGenerator $link */

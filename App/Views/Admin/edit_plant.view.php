@@ -1,3 +1,4 @@
+<!--Vytvorené s pomocou Github Copilot-->
 <?php /** @var array $errors */ /** @var bool $success */ /** @var array $plant */ /** @var \Framework\Support\LinkGenerator $link */ /** @var string|null $imagePath */ ?>
 <div class="container mt-5">
     <div class="row justify-content-center">

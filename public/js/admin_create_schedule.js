@@ -1,3 +1,4 @@
+//Vytvorené s pomocou Github Copilot
 (function(){
     'use strict';
 
