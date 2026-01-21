@@ -668,6 +668,144 @@ class AdminController extends BaseController
     }
 
     /**
+     * Return a JSON list of reminders (raw rows) for the current user.
+     */
+    public function listReminders(Request $request): Response
+    {
+        if (!$this->user->isLoggedIn()) {
+            return $this->json([]);
+        }
+        $db = Connection::getInstance();
+        $sql = "SELECT r.reminder_id, r.user_id, r.plant_id, r.remind_date, r.frequency_days, r.title, r.notes, p.common_name AS plant_name
+                FROM reminders r
+                LEFT JOIN plants p ON p.plant_id = r.plant_id
+                WHERE r.user_id = ?
+                ORDER BY r.remind_date DESC, r.reminder_id DESC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$this->user->getId()]);
+        $rows = $stmt->fetchAll();
+        return $this->json($rows);
+    }
+
+    /**
+     * Edit a single reminder (GET shows form, POST updates).
+     */
+    public function editReminder(Request $request): Response
+    {
+        $db = Connection::getInstance();
+        $reminderId = (int)($request->value('id') ?? $request->value('reminder_id') ?? 0);
+        if ($reminderId <= 0) {
+            return $this->redirect($this->url('admin.createSchedule'));
+        }
+
+        // Fetch reminder
+        $stmt = $db->prepare('SELECT * FROM reminders WHERE reminder_id = ?');
+        $stmt->execute([$reminderId]);
+        $rem = $stmt->fetch();
+        if (!$rem) {
+            return $this->redirect($this->url('admin.createSchedule'));
+        }
+        if ((int)$rem['user_id'] !== $this->user->getId()) {
+            return $this->redirect($this->url('admin.createSchedule'));
+        }
+
+        // Fetch plants for selection
+        $stmt = $db->prepare('SELECT plant_id, common_name FROM plants WHERE user_id = ? ORDER BY common_name ASC');
+        $stmt->execute([$this->user->getId()]);
+        $plants = $stmt->fetchAll();
+
+        $errors = [];
+        if ($request->isPost()) {
+            $data = $request->post();
+            // Determine if plan (one-off) or schedule (recurring)
+            $isPlan = (isset($data['type']) && $data['type'] === 'plan') || (isset($data['frequency_days']) && (int)$data['frequency_days'] === -1);
+
+            $remind_date = trim((string)($data['remind_date'] ?? ''));
+            $d = \DateTime::createFromFormat('Y-m-d', $remind_date);
+            $isValidDate = $d && $d->format('Y-m-d') === $remind_date;
+            $today = new \DateTime('today');
+            if (!$isValidDate) { $errors[] = 'Date is not a valid date (YYYY-MM-DD).'; }
+            else if ($isPlan) {
+                if ($d < $today) { $errors[] = 'Plan date cannot be in the past.'; }
+            } else {
+                if ($d <= $today) { $errors[] = 'First date must be in the future.'; }
+            }
+
+            $plantId = (int)($data['plant_id'] ?? 0);
+            if ($plantId > 0) {
+                $found = false;
+                foreach ($plants as $p) { if ((int)$p['plant_id'] === $plantId) { $found = true; break; } }
+                if (!$found) { $errors[] = 'Selected plant not found.'; }
+            } else {
+                if (!empty($plants)) {
+                    // fallback to first plant
+                    $plantId = (int)$plants[0]['plant_id'];
+                } else {
+                    $errors[] = 'No plant selected. Please add a plant first.';
+                }
+            }
+
+            $title = trim((string)($data['title'] ?? ''));
+            if ($title === '') { $errors[] = 'Title is required.'; }
+            elseif (mb_strlen($title) > 50) { $errors[] = 'Title must be at most 50 characters.'; }
+
+            $notes = trim((string)($data['notes'] ?? ''));
+
+            $frequencyDays = -1;
+            if (!$isPlan) {
+                $frequencyDays = (int)($data['frequency_days'] ?? 0);
+                if ($frequencyDays <= 0) { $errors[] = 'Frequency must be a positive number of days.'; }
+            }
+
+            if (empty($errors)) {
+                $stmt = $db->prepare('UPDATE reminders SET plant_id = ?, remind_date = ?, frequency_days = ?, title = ?, notes = ? WHERE reminder_id = ? AND user_id = ?');
+                $stmt->execute([$plantId, $remind_date, $frequencyDays, $title, $notes, $reminderId, $this->user->getId()]);
+                return $this->redirect($this->url('admin.createSchedule'));
+            }
+
+            // repopulate $rem for form
+            $rem['plant_id'] = $plantId;
+            $rem['remind_date'] = $remind_date;
+            $rem['frequency_days'] = $frequencyDays;
+            $rem['title'] = $title;
+            $rem['notes'] = $notes;
+        }
+
+        return $this->html(['reminder' => $rem, 'plants' => $plants, 'errors' => $errors], 'edit_reminder');
+    }
+
+    /**
+     * Delete a reminder via POST; returns JSON success status.
+     */
+    public function deleteReminder(Request $request): Response
+    {
+        if (!$request->isPost()) {
+            return $this->json(['success' => false]);
+        }
+        $reminderId = (int)($request->value('reminder_id') ?? 0);
+        if ($reminderId <= 0) {
+            return $this->json(['success' => false]);
+        }
+        $db = Connection::getInstance();
+        try {
+            // Verify ownership
+            $stmt = $db->prepare('SELECT user_id FROM reminders WHERE reminder_id = ?');
+            $stmt->execute([$reminderId]);
+            $row = $stmt->fetch();
+            if (!$row) return $this->json(['success' => false]);
+            if ((int)$row['user_id'] !== $this->user->getId()) {
+                return $this->json(['success' => false]);
+            }
+
+            $stmt = $db->prepare('DELETE FROM reminders WHERE reminder_id = ?');
+            $stmt->execute([$reminderId]);
+            return $this->json(['success' => true]);
+        } catch (\Exception $e) {
+            return $this->json(['success' => false]);
+        }
+    }
+
+    /**
      * Displays the users page in the admin panel.
      *
      * This action requires authorization. It fetches all users along with counts of their plants and reminders,

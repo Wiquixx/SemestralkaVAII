@@ -13,7 +13,7 @@
     <div class="row">
         <div class="col text-center">
             <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
-                <h2 style="margin:0;">Create Schedule / Plan</h2>
+                <h2 style="margin:0;">Manage Schedules</h2>
                 <!-- X button: goes back to main admin menu -->
                 <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" aria-label="Close and return to menu" title="Close" style="font-size:24px;text-decoration:none;color:inherit;">&times;</a>
             </div>
@@ -29,9 +29,11 @@
                 </div>
             <?php endif; ?>
 
-            <div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">
+            <div class="admin-action-row" style="margin-top:10px;">
                 <button id="btn_schedule" class="admin-action-btn" type="button">Schedule</button>
                 <button id="btn_plan" class="admin-action-btn" type="button">Plan</button>
+                <button id="btn_edit_list" class="admin-action-btn" type="button">Edit</button>
+                <button id="btn_delete_list" class="admin-action-btn" type="button">Delete</button>
             </div>
 
             <div style="margin-top:18px;max-width:720px;margin-left:auto;margin-right:auto;text-align:left;">
@@ -120,6 +122,21 @@
                         <button type="submit" class="admin-action-btn">Create Plan</button>
                     </div>
                 </form>
+
+                <!-- Edit list (shows reminders with edit links) -->
+                <div id="reminder_edit_list" style="display:none;margin-top:14px;">
+                    <h3 style="margin-top:0;margin-bottom:8px;font-size:18px;">Edit schedules / plans</h3>
+                    <div id="edit_items" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <div id="edit_empty" style="color:#666;display:none;">No schedules or plans found.</div>
+                </div>
+
+                <!-- Delete list (shows reminders with delete buttons) -->
+                <div id="reminder_delete_list" style="display:none;margin-top:14px;">
+                    <h3 style="margin-top:0;margin-bottom:8px;font-size:18px;">Delete schedules / plans</h3>
+                    <div id="delete_items" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <div id="delete_empty" style="color:#666;display:none;">No schedules or plans found.</div>
+                </div>
+
             </div>
 
             <div style="margin-top:12px;">
@@ -137,26 +154,134 @@
 (function(){
     var btnSchedule = document.getElementById('btn_schedule');
     var btnPlan = document.getElementById('btn_plan');
+    var btnEditList = document.getElementById('btn_edit_list');
+    var btnDeleteList = document.getElementById('btn_delete_list');
     var formSchedule = document.getElementById('form_schedule');
     var formPlan = document.getElementById('form_plan');
     var titleOption = document.getElementById('title_option');
     var customWrapper = document.getElementById('custom_title_wrapper');
+    var editListRoot = document.getElementById('reminder_edit_list');
+    var deleteListRoot = document.getElementById('reminder_delete_list');
+    var editItems = document.getElementById('edit_items');
+    var deleteItems = document.getElementById('delete_items');
+    var editEmpty = document.getElementById('edit_empty');
+    var deleteEmpty = document.getElementById('delete_empty');
 
     function showSchedule(){
         formSchedule.style.display = '';
         formPlan.style.display = 'none';
+        editListRoot.style.display = 'none';
+        deleteListRoot.style.display = 'none';
         btnSchedule.disabled = true;
         btnPlan.disabled = false;
     }
     function showPlan(){
         formSchedule.style.display = 'none';
         formPlan.style.display = '';
+        editListRoot.style.display = 'none';
+        deleteListRoot.style.display = 'none';
         btnSchedule.disabled = false;
         btnPlan.disabled = true;
     }
 
+    function showEditList(){
+        formSchedule.style.display = 'none';
+        formPlan.style.display = 'none';
+        editListRoot.style.display = '';
+        deleteListRoot.style.display = 'none';
+        btnSchedule.disabled = false;
+        btnPlan.disabled = false;
+        fetchRemindersAndRender('edit');
+    }
+
+    function showDeleteList(){
+        formSchedule.style.display = 'none';
+        formPlan.style.display = 'none';
+        editListRoot.style.display = 'none';
+        deleteListRoot.style.display = '';
+        btnSchedule.disabled = false;
+        btnPlan.disabled = false;
+        fetchRemindersAndRender('delete');
+    }
+
+    function fetchRemindersAndRender(mode){
+        editItems.innerHTML = '';
+        deleteItems.innerHTML = '';
+        editEmpty.style.display = 'none';
+        deleteEmpty.style.display = 'none';
+
+        // Use controller endpoint to list reminders (returns JSON)
+        var url = window.location.pathname + '?c=admin&a=listReminders';
+        fetch(url, {credentials: 'same-origin'})
+            .then(function(resp){ return resp.json(); })
+            .then(function(data){
+                if (!Array.isArray(data) || data.length === 0) {
+                    editEmpty.style.display = mode === 'edit' ? '' : 'none';
+                    deleteEmpty.style.display = mode === 'delete' ? '' : 'none';
+                    return;
+                }
+
+                data.forEach(function(r){
+                    var common = r.plant_name ? (r.plant_name + ' — ') : '';
+                    var when = r.remind_date || '';
+
+                    // Row wrapper
+                    var row = document.createElement('div');
+                    row.className = 'reminder-item';
+
+                    // Left content (flexible)
+                    var left = document.createElement('div');
+                    left.className = 'reminder-left';
+                    left.innerText = common + when + ' — ' + (r.title || '');
+
+                    // Right content (actions)
+                    var right = document.createElement('div');
+                    right.className = 'reminder-right';
+
+                    if (mode === 'edit'){
+                        var a = document.createElement('a');
+                        a.className = 'reminder-action';
+                        a.href = window.location.pathname + '?c=admin&a=editReminder&id=' + encodeURIComponent(r.reminder_id);
+                        a.setAttribute('aria-label', 'Edit reminder');
+                        a.innerText = '✎';
+                        right.appendChild(a);
+                        editItems.appendChild(row);
+                    } else {
+                        var del = document.createElement('button');
+                        del.className = 'reminder-action';
+                        del.type = 'button';
+                        del.setAttribute('aria-label', 'Delete reminder');
+                        del.innerText = '🗑';
+                        del.addEventListener('click', function(){
+                            if (!confirm('Delete this schedule/plan?')) return;
+                            var fd = new FormData(); fd.append('reminder_id', r.reminder_id);
+                            fetch(window.location.pathname + '?c=admin&a=deleteReminder', {method: 'POST', body: fd, credentials: 'same-origin'})
+                                .then(function(res){ return res.json(); })
+                                .then(function(resp){
+                                    if (resp && resp.success) {
+                                        // remove element from UI
+                                        if (row && row.parentNode) row.parentNode.removeChild(row);
+                                    } else {
+                                        alert('Unable to delete.');
+                                    }
+                                }).catch(function(){ alert('Network error'); });
+                        });
+                        right.appendChild(del);
+                        deleteItems.appendChild(row);
+                    }
+
+                    row.appendChild(left);
+                    row.appendChild(right);
+                });
+            }).catch(function(){
+                // ignore
+            });
+    }
+
     btnSchedule.addEventListener('click', showSchedule);
     btnPlan.addEventListener('click', showPlan);
+    btnEditList.addEventListener('click', showEditList);
+    btnDeleteList.addEventListener('click', showDeleteList);
 
     titleOption.addEventListener('change', function(){
         if (this.value === 'custom') {

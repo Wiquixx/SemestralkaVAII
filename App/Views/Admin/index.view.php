@@ -27,7 +27,7 @@
                 <?php else: ?>
                     <a href="#" id="view_calendar_btn" class="admin-action-btn" aria-disabled="true" tabindex="-1" style="opacity:0.6;pointer-events:none;">View Calendar</a>
                 <?php endif; ?>
-                <a href="<?= $link->url('admin.createSchedule') ?>" class="admin-action-btn">Create Schedule</a>
+                <a href="<?= $link->url('admin.createSchedule') ?>" class="admin-action-btn">Manage Schedules</a>
                 <a href="<?= $link->url('admin.addPlant') ?>" class="admin-action-btn">Add Plant</a>
                 <a href="#" id="toggle_edit_btn" class="admin-action-btn">Edit Plant</a>
                 <a href="#" id="toggle_remove_btn" class="admin-action-btn">Remove Plant</a>

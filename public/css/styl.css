@@ -349,3 +349,101 @@ body, html {
         left: 8px;
     }
 }
+
+/* Helper: row of admin action buttons (used in Manage Schedules view) */
+.admin-action-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap; /* allow wrapping when space is tight */
+    margin-top: 10px;
+}
+
+/* Make buttons inline-sized inside the row instead of full-width grid tiles */
+.admin-action-row .admin-action-btn {
+    width: auto;           /* don't force full width */
+    min-width: 120px;      /* keep buttons reasonably tappable */
+    height: 44px;          /* compact height for inline buttons */
+    padding: 8px 14px;     /* horizontal padding */
+    flex-direction: row;   /* icon/text horizontally centered */
+    font-size: 1rem;      /* slightly smaller than tile buttons */
+    border-radius: 10px;  /* slightly smaller radius fits inline */
+}
+
+/* Hover state should remain consistent */
+.admin-action-row .admin-action-btn:hover {
+    background: #21b573;
+    color: #fff;
+}
+
+/* On small screens, stack vertically and restore larger height for touch */
+@media (max-width: 600px) {
+    .admin-action-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .admin-action-row .admin-action-btn {
+        width: 100%;
+        height: 70px;
+        font-size: 1rem;
+    }
+}
+
+/* Reminder list item: single-line row used in Manage Schedules Edit/Delete lists */
+.reminder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #eee;
+    padding: 0; /* left content gets its own padding */
+    height: 56px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.reminder-item .reminder-left {
+    padding: 8px 12px;
+    flex: 1 1 auto;
+    color: #135e3a;
+    font-weight: 600;
+    min-width: 0; /* allow truncation */
+}
+.reminder-item .reminder-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding-right: 8px;
+}
+
+/* Square action button that matches the row height */
+.reminder-action {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px; /* default square size inside 56px row */
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    border-radius: 8px;
+    padding: 0 6px;
+    background: #f8fffb;
+    border: 1px solid #21b573;
+    color: #21b573;
+    text-decoration: none;
+    font-weight: 700;
+}
+.reminder-action:hover {
+    background: #21b573;
+    color: #fff;
+}
+
+/* If we want the action to occupy full row height, increase size on wider screens */
+@media (min-width: 800px) {
+    .reminder-item { height: 64px; }
+    .reminder-action { flex: 0 0 56px; width: 56px; height: 56px; }
+}
+
+@media (max-width: 480px) {
+    .reminder-item { height: 52px; }
+    .reminder-action { flex: 0 0 44px; width:44px; height:44px; }
+}
