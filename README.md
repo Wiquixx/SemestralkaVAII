@@ -1,30 +1,92 @@
-# About
+# VAIIcko — Installation (Docker)
 
-This framework was created to support the teaching of the subject Development of intranet and intranet applications 
-(VAII) at the [Faculty of Management Science and Informatics](https://www.fri.uniza.sk/) of
-[University of Žilina](https://www.uniza.sk/). Framework demonstrates how the MVC architecture works.
+This repository contains a small MVC teaching framework and a sample application.
+This README replaces the previous generic description with a concise, actionable Docker-based installation guide.
 
-# Instructions and documentation 
+## Prerequisites
+- Docker (Desktop) installed and running
+- docker-compose (bundled with Docker Desktop on Windows)
 
-The framework source code is fully commented. In case you need additional information to understand,
-visit the [WIKI stránky](https://github.com/thevajko/vaiicko/wiki/00-%C3%9Avodn%C3%A9-inform%C3%A1cie) (only in Slovak).
+## What this Docker setup provides
+- Apache + PHP 8.3 (web) serving from the project's `public/` directory
+- MariaDB database initialized from the `docker/sql/` folder
+- Adminer (web-based database admin) to inspect the database
 
-# Docker configuration
+## Ports (mapped to localhost)
+- Web site: http://localhost/ (Apache, port 80)
+- Adminer: http://localhost:8080/ (Adminer, port 8080)
+- MariaDB: 127.0.0.1:3306 (for local DB clients)
 
-The Framework has a basic configuration for running and debugging web applications in the `<root>/docker` directory. 
-All necessary services are set in `docker-compose.yml` file. After starting them, it creates the following services:
+## Quick start (recommended)
+1. Create the environment file used by Docker Compose.
+   The compose file expects environment variables for the database. Create a file named `.env` inside the `docker/` directory (next to `docker-compose.yml`). Example content:
 
-- web server (Apache) with the __PHP 8.3__ 
-- MariaDB database server with a created _database_ named according `MYSQL_DATABASE` environment variable
-- Adminer application for MariaDB administration
+```text
+# filepath: docker/.env
+MARIADB_ROOT_PASSWORD=rootpass
+MARIADB_DATABASE=vaiicko_db
+MARIADB_USER=vaiicko_user
+MARIADB_PASSWORD=dtb456
+```
 
-## Other notes:
+- The values above match the defaults used in the application configuration (`App/Configuration.php`). You can change them but if you do, update `App/Configuration.php` accordingly or set matching values in your runtime environment.
+- Choose a stronger `MARIADB_ROOT_PASSWORD` for production or shared environments.
 
-- __WWW document root__ is set to the `public` in the project directory.
-- The website is available at [http://localhost/](http://localhost/).
-- The server includes an extension for PHP code debugging [__Xdebug 3__](https://xdebug.org/), uses the  
-  port __9003__ and works in "auto-start" mode.
-- PHP contains the __PDO__ extension.
-- The database server is available locally on the port __3306__. The default login details can be found in `.env` file.
-- Adminer is available at [http://localhost:8080/](http://localhost:8080/)
+2. From the project root, start the services with docker-compose:
 
+```cmd
+cd docker
+docker-compose up -d --build
+```
+
+This will pull the configured images, mount the project into the web container, initialize the database using the SQL files under `docker/sql/`, and start Adminer and the web server.
+
+3. Visit the app in your browser
+- Application: http://localhost/
+- Adminer:  http://localhost:8080/
+
+### Adminer login example
+- System: MySQL
+- Server: db
+- Username: vaiicko_user
+- Password: dtb456
+- Database: vaiicko_db
+
+## Notes and troubleshooting
+- If ports 80 or 3306 are already in use on your machine, modify the `ports:` mapping in `docker/docker-compose.yml` or stop the conflicting service.
+- The compose file maps the project root into the web container. Any PHP changes in the project will be visible immediately inside the container.
+- Database initialization: SQL scripts in `docker/sql/` are mounted into the MariaDB image and executed on first container startup. If you need to re-run them, remove the database container and its volume (be careful — you will lose data):
+
+```cmd
+cd docker
+docker-compose down
+REM remove any created data files or named volumes if applicable
+docker-compose up -d --build
+```
+
+## Stopping the project
+
+```cmd
+cd docker
+docker-compose down
+```
+
+## Useful commands
+- View logs:
+
+```cmd
+cd docker
+docker-compose logs -f web
+```
+
+- Execute a shell in the web container:
+
+```cmd
+docker-compose exec web bash
+```
+
+## Security reminder
+- The `.env` file contains credentials. Do not commit it to public repositories. Add it to `.gitignore` if you plan to store it locally.
+
+## Further reading
+- See `docker/docker-compose.yml` for service definitions and `docker/sql/` for database initialization scripts.

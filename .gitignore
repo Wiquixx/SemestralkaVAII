@@ -1,1 +1,17 @@
-.idea
+# Ignore local docker environment file which contains DB credentials
+/docker/.env
+
+# Ignore typical runtime/uploaded files
+/public/uploads/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+# Example .env for docker-compose (copy to docker/.env and set secure passwords)
+# NOTE: do not commit your actual docker/.env to source control
+
+MARIADB_ROOT_PASSWORD=rootpass
+MARIADB_DATABASE=vaiicko_db
+MARIADB_USER=vaiicko_user
+MARIADB_PASSWORD=dtb456
+
