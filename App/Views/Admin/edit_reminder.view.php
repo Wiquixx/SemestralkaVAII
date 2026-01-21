@@ -30,8 +30,8 @@
         <input type="hidden" name="reminder_id" value="<?= (int)($reminder['reminder_id'] ?? 0) ?>">
 
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-            <label style="font-weight:600;">Type</label>
-            <select id="edit_type" name="type" class="form-select" style="max-width:220px;">
+            <label id="edit_type_label" for="edit_type"><strong>Type</strong></label>
+            <select id="edit_type" name="type" class="form-select" aria-labelledby="edit_type_label" style="max-width:220px;">
                 <option value="schedule" <?= $isPlan ? '' : 'selected' ?>>Schedule (recurring)</option>
                 <option value="plan" <?= $isPlan ? 'selected' : '' ?>>Plan (one-off)</option>
             </select>
@@ -67,36 +67,41 @@
         </div>
 
         <div style="margin-top:14px;text-align:center;">
-            <button type="submit" class="admin-action-btn">Save</button>
-            <a href="<?= htmlspecialchars($link->url('admin.createSchedule'), ENT_QUOTES) ?>" class="admin-action-btn" style="margin-left:8px;">Cancel</a>
+            <div class="d-grid gap-2" style="margin-top:0;">
+                <button type="submit" class="btn btn-success" style="background:#21b573;border:none;">Save Changes</button>
+                <a href="<?= htmlspecialchars($link->url('admin.createSchedule'), ENT_QUOTES) ?>" class="btn btn-danger" style="background:#dc3545;border:none;color:#fff;">Cancel</a>
+            </div>
         </div>
     </form>
 
     <script>
     (function(){
-        var sel = document.getElementById('edit_type');
-        var freq = document.getElementById('freq_block');
-        var freqInput = document.getElementById('edit_frequency');
+        const sel = document.getElementById('edit_type');
+        if (!sel) return;
+        const freq = document.getElementById('freq_block');
+        const freqInput = document.getElementById('edit_frequency');
+
         sel.addEventListener('change', function(){
             if (this.value === 'plan'){
-                freq.style.display = 'none';
-                // ensure frequency_days will be submitted as -1 by adding a hidden input
-                if (!document.getElementById('hidden_freq_flag')){
-                    var h = document.createElement('input');
-                    h.type = 'hidden'; h.name = 'frequency_days'; h.id = 'hidden_freq_flag'; h.value = '-1';
-                    freq.parentNode.insertBefore(h, freq.nextSibling);
-                } else {
-                    document.getElementById('hidden_freq_flag').value = '-1';
+                if (freq) freq.style.display = 'none';
+                // ensure frequency_days will be submitted as -1 by adding/updating a hidden input
+                let hidden = document.getElementById('hidden_freq_flag');
+                if (!hidden && freq) {
+                    hidden = document.createElement('input');
+                    hidden.type = 'hidden'; hidden.name = 'frequency_days'; hidden.id = 'hidden_freq_flag'; hidden.value = '-1';
+                    freq.parentNode.insertBefore(hidden, freq.nextSibling);
+                } else if (hidden) {
+                    hidden.value = '-1';
                 }
                 if (freqInput) freqInput.removeAttribute('required');
             } else {
-                freq.style.display = '';
-                var h = document.getElementById('hidden_freq_flag'); if (h) h.parentNode.removeChild(h);
+                if (freq) freq.style.display = '';
+                const hidden = document.getElementById('hidden_freq_flag');
+                if (hidden && hidden.parentNode) hidden.parentNode.removeChild(hidden);
                 if (freqInput) freqInput.setAttribute('required','required');
             }
         });
-    })();
-    </script>
+     })();
+     </script>
 
 </div>
-

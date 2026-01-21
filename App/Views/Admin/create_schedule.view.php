@@ -84,8 +84,10 @@
                         <textarea name="notes" id="notes" class="form-control" rows="3" maxlength="1000"></textarea>
                     </div>
 
-                    <div style="text-align:center;margin-bottom:16px;">
-                        <button type="submit" class="admin-action-btn">Create Schedule</button>
+                    <!-- Replace single create button with the same layout used in add/edit plant views -->
+                    <div class="d-grid gap-2" style="margin-bottom:16px;">
+                        <button type="submit" class="btn btn-success" style="background:#21b573;border:none;">Create Schedule</button>
+                        <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" class="btn btn-danger" style="background:#dc3545;border:none;color:#fff;">Cancel</a>
                     </div>
                 </form>
 
@@ -118,8 +120,10 @@
                         <textarea name="plan_notes" id="plan_notes" class="form-control" rows="3" maxlength="1000"></textarea>
                     </div>
 
-                    <div style="text-align:center;margin-bottom:16px;">
-                        <button type="submit" class="admin-action-btn">Create Plan</button>
+                    <!-- Match add/edit plant button layout for plan form too -->
+                    <div class="d-grid gap-2" style="margin-bottom:16px;">
+                        <button type="submit" class="btn btn-success" style="background:#21b573;border:none;">Create Plan</button>
+                        <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" class="btn btn-danger" style="background:#dc3545;border:none;color:#fff;">Cancel</a>
                     </div>
                 </form>
 
@@ -137,13 +141,6 @@
                     <div id="delete_empty" style="color:#666;display:none;">No schedules or plans found.</div>
                 </div>
 
-            </div>
-
-            <div style="margin-top:12px;">
-                <!-- Match size of create button: make full-width and same height as .admin-action-btn inside the form -->
-                <div style="max-width:720px;margin-left:auto;margin-right:auto;">
-                    <a href="<?= htmlspecialchars($link->url('admin.index'), ENT_QUOTES) ?>" class="admin-action-btn">Back to Menu</a>
-                </div>
             </div>
 
         </div>
