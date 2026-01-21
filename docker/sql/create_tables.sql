@@ -26,7 +26,7 @@ CREATE TABLE images (
     plant_id INT NOT NULL,
     file_path VARCHAR(500) NOT NULL,
     uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_images_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id)
+    CONSTRAINT fk_images_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Table: reminders
@@ -41,7 +41,7 @@ CREATE TABLE reminders (
     active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_reminders_user FOREIGN KEY (user_id) REFERENCES users(user_id),
-    CONSTRAINT fk_reminders_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id)
+    CONSTRAINT fk_reminders_plant FOREIGN KEY (plant_id) REFERENCES plants(plant_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Index for users.email

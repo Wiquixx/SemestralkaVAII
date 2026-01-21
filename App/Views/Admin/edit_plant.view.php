@@ -61,38 +61,7 @@
                 </div>
             </form>
 
-            <!-- Client-side preview: when a new file is chosen, show it and indicate it will replace the existing image -->
-            <script>
-                (function(){
-                    var input = document.getElementById('image');
-                    var img = document.getElementById('currentImage');
-                    if (!input || !img) return;
-                    input.addEventListener('change', function(){
-                        var file = input.files && input.files[0];
-                        if (!file) return;
-                        var allowed = ['image/jpeg','image/png','image/gif'];
-                        if (allowed.indexOf(file.type) === -1) {
-                            alert('Allowed image types: JPEG, PNG, GIF');
-                            input.value = '';
-                            return;
-                        }
-                        if (file.size > 5 * 1024 * 1024) {
-                            alert('File too large. Max 5MB');
-                            input.value = '';
-                            return;
-                        }
-                        var reader = new FileReader();
-                        reader.onload = function(e){
-                            img.src = e.target.result;
-                            img.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    });
-                })();
-            </script>
-
-            <!-- Load external JS to enforce client-side validation (keeps view logic-free) -->
-            <script src="/js/admin_edit_plant.js"></script>
+            <script src="<?= htmlspecialchars($link->asset('js/admin_edit_plant.js'), ENT_QUOTES) ?>"></script>
         </div>
     </div>
 </div>

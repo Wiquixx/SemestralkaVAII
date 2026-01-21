@@ -5,6 +5,18 @@
         const base = root && root.dataset && root.dataset.adminIndex ? root.dataset.adminIndex : null;
         const baseEdit = root && root.dataset && root.dataset.adminEdit ? root.dataset.adminEdit : null;
 
+        // Auto-dismiss flash alert after 3 seconds (moved from view inline script)
+        (function(){
+            var flash = document.getElementById('flash_alert');
+            if (flash) {
+                setTimeout(function(){
+                    flash.style.transition = 'opacity 0.5s ease';
+                    flash.style.opacity = '0';
+                    setTimeout(function(){ if (flash && flash.parentNode) flash.parentNode.removeChild(flash); }, 500);
+                }, 3000);
+            }
+        })();
+
         const select = document.getElementById('sort_by');
         if (select && base) {
             select.addEventListener('change', function () {

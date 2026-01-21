@@ -74,34 +74,6 @@
         </div>
     </form>
 
-    <script>
-    (function(){
-        const sel = document.getElementById('edit_type');
-        if (!sel) return;
-        const freq = document.getElementById('freq_block');
-        const freqInput = document.getElementById('edit_frequency');
-
-        sel.addEventListener('change', function(){
-            if (this.value === 'plan'){
-                if (freq) freq.style.display = 'none';
-                // ensure frequency_days will be submitted as -1 by adding/updating a hidden input
-                let hidden = document.getElementById('hidden_freq_flag');
-                if (!hidden && freq) {
-                    hidden = document.createElement('input');
-                    hidden.type = 'hidden'; hidden.name = 'frequency_days'; hidden.id = 'hidden_freq_flag'; hidden.value = '-1';
-                    freq.parentNode.insertBefore(hidden, freq.nextSibling);
-                } else if (hidden) {
-                    hidden.value = '-1';
-                }
-                if (freqInput) freqInput.removeAttribute('required');
-            } else {
-                if (freq) freq.style.display = '';
-                const hidden = document.getElementById('hidden_freq_flag');
-                if (hidden && hidden.parentNode) hidden.parentNode.removeChild(hidden);
-                if (freqInput) freqInput.setAttribute('required','required');
-            }
-        });
-     })();
-     </script>
+    <script src="<?= htmlspecialchars($link->asset('js/admin_edit_reminder.js'), ENT_QUOTES) ?>"></script>
 
 </div>

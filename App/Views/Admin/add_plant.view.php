@@ -49,7 +49,7 @@
             </form>
 
             <!-- Load external JS to enforce client-side validation (keeps view logic-free) -->
-            <script src="/js/admin_add_plant.js"></script>
+            <script src="<?= htmlspecialchars($link->asset('js/admin_add_plant.js'), ENT_QUOTES) ?>"></script>
         </div>
     </div>
 </div>

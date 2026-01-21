@@ -109,19 +109,5 @@
     <input type="hidden" name="plant_id" id="delete_plant_id" value="">
 </form>
 
-<script>
-    // Auto-dismiss flash alert after 3 seconds
-    document.addEventListener('DOMContentLoaded', function(){
-        var flash = document.getElementById('flash_alert');
-        if (flash) {
-            setTimeout(function(){
-                flash.style.transition = 'opacity 0.5s ease';
-                flash.style.opacity = '0';
-                setTimeout(function(){ if (flash && flash.parentNode) flash.parentNode.removeChild(flash); }, 500);
-            }, 3000);
-        }
-    });
-</script>
-
 <script src="<?= htmlspecialchars($link->asset('js/admin_index.js'), ENT_QUOTES) ?>"></script>
 <script src="<?= htmlspecialchars($link->asset('js/admin_calendar.js'), ENT_QUOTES) ?>"></script>
