@@ -82,7 +82,7 @@ class Plant
         return $row ?: null;
     }
 
-    public static function update(int $plantId, int $userId, array $data, ?UploadedFile $uploaded = null): array
+    public static function update(int $plantId, int $userId, array $data, ?UploadedFile $uploaded = null, bool $removeImage = false): array
     {
         $db = Connection::getInstance();
 
@@ -108,6 +108,10 @@ class Plant
                 $stmtImg = $db->prepare('INSERT INTO images (plant_id, file_path) VALUES (?, ?)');
                 $stmtImg->execute([$plantId, $webPath]);
             }
+        } elseif ($removeImage) {
+            // delete existing image records (no upload)
+            $oldFiles = Image::getImagesByPlant($plantId);
+            Image::deleteImagesByPlant($plantId);
         }
 
         return $oldFiles;
@@ -149,4 +153,3 @@ class Plant
         }
     }
 }
-

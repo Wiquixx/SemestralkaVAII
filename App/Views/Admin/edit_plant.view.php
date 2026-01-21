@@ -46,6 +46,12 @@
                             <img id="currentImage" src="<?= htmlspecialchars($imagePath) ?>" alt="Current plant image" style="max-width:100%;height:auto;max-height:200px;border:1px solid #ddd;padding:4px;display:block;">
                             <div class="form-text">Current image. Choosing a new file will replace it.</div>
                         </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="remove_image" name="remove_image" value="1">
+                            <label class="form-check-label" for="remove_image">Remove image</label>
+                            <div class="form-text">Check to remove the current image when saving.</div>
+                        </div>
                     <?php else: ?>
                         <div class="mb-2">
                             <img id="currentImage" src="" alt="" style="display:none;max-width:100%;height:auto;max-height:200px;border:1px solid #ddd;padding:4px;">

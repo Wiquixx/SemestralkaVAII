@@ -246,6 +246,7 @@ class AdminController extends BaseController
             if (empty($errors)) {
                 try {
                     $uploaded = $request->file('image');
+                    $removeImage = isset($data['remove_image']) && $data['remove_image'] === '1';
 
                     $oldImages = Plant::update($plantId, $this->user->getId(), [
                         'common_name' => $common_name,
@@ -253,7 +254,7 @@ class AdminController extends BaseController
                         'location' => $location,
                         'purchase_date' => $purchase_date,
                         'notes' => $notes
-                    ], $uploaded);
+                    ], $uploaded, $removeImage);
 
                     // Unlink old image files now that DB transaction committed
                     if (!empty($oldImages)) {

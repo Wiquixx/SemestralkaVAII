@@ -40,8 +40,13 @@ document.addEventListener('DOMContentLoaded', function(){
     // Image preview logic
     var input = document.getElementById('image');
     var img = document.getElementById('currentImage');
+    var removeCheckbox = document.getElementById('remove_image');
+    var originalSrc = img ? img.src : '';
     if (input && img) {
         input.addEventListener('change', function(){
+            // If user selects a new file, uncheck "remove image"
+            if (removeCheckbox) removeCheckbox.checked = false;
+
             var file = input.files && input.files[0];
             if (!file) return;
             var allowed = ['image/jpeg','image/png','image/gif'];
@@ -61,6 +66,26 @@ document.addEventListener('DOMContentLoaded', function(){
                 img.style.display = 'block';
             };
             reader.readAsDataURL(file);
+        });
+    }
+
+    // Handle remove image checkbox: hide preview and clear file input if checked
+    if (removeCheckbox && img && input) {
+        removeCheckbox.addEventListener('change', function(){
+            if (removeCheckbox.checked) {
+                // hide preview and clear src
+                img.style.display = 'none';
+                // clear current image src to avoid showing after form submit
+                try { img.src = ''; } catch (e) {}
+                // clear file input
+                input.value = '';
+            } else {
+                // restore original src if available
+                if (originalSrc) {
+                    img.src = originalSrc;
+                    img.style.display = 'block';
+                }
+            }
         });
     }
 });
